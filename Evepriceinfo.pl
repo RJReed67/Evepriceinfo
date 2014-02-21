@@ -29,9 +29,12 @@ use FileHandle;
 currency_set('USD','#,###.## ISK',FMT_COMMON);
 
 my $cfg = new Config::Simple('epi.conf'); 
+my $DBName = $cfg->param("DBName");
+my $DBUser = $cfg->param("DBUser");
+my $DBPassword = $cfg->param("DBPassword");
 
-my $dbh = DBI->connect("DBI:mysql:database=$cfg->param('DB_Name');host=localhost",
-                         "$cfg->param('DB_User')", "$cfg->param('DB_Password')",
+my $dbh = DBI->connect("DBI:mysql:database=$DBName;host=localhost",
+                         "$DBUser", "$DBPassword",
                          {'RaiseError' => 1});
 $dbh->{mysql_auto_reconnect} = 1;
 my $sth = $dbh->prepare('SELECT * FROM epi_configuration');
