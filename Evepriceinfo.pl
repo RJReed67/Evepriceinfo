@@ -28,7 +28,7 @@ use FileHandle;
  
 currency_set('USD','#,###.## ISK',FMT_COMMON);
 
-my $cfg = new Config::Simple('epi.conf'); 
+my $cfg = new Config::Simple('/opt/evepriceinfo/epi.conf'); 
 my $DBName = $cfg->param("DBName");
 my $DBUser = $cfg->param("DBUser");
 my $DBPassword = $cfg->param("DBPassword");
