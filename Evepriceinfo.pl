@@ -543,6 +543,10 @@ sub irc_botcmd_wg500 {
                     } else {
                        $winner2 = $winner." (not following)";
                     }
+                    $sth->finish;
+                    $sth = $dbh->prepare('INSERT INTO giveaway SET GiveTitle=?, Threshold=?, AutoGive=?, StartDate=NOW(), EndDate=NOW(), Winner=?');
+                    $sth->execute("Weekly Giveaway",0,$winner);
+                    $sth->finish;
                     $irc->yield(privmsg => $where, "/me Congratulations $winner2, you've won this week's giveaway!");
                     $irc->yield(privmsg => $where, "/me $winner! Come On Down!");
                }
@@ -670,6 +674,10 @@ sub irc_botcmd_give {
           $irc->yield(privmsg => $where, "/me Not a valid give command. Valid commands are close, draw, history, and open # Title.");
           return;
      } elsif ($arg =~ /^open/) {
+          if ($giveaway_open == 1) {
+               $irc->yield(privmsg => $where, "/me A giveaway is still open. Please close the giveaway before attempting to do a new one.");
+               return;
+          }
           my $sth = $dbh->prepare('TRUNCATE TABLE entrylist');
           $sth->execute();
           $sth->finish;
@@ -729,6 +737,10 @@ sub irc_botcmd_tgw {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
      if (!$irc->is_channel_operator($where,$nick)) {
+          return;
+     }
+     if ($giveaway_open == 1) {
+          $irc->yield(privmsg => $where, "/me A giveaway is still open. Please close the giveaway before attempting to do a new one.");
           return;
      }
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
