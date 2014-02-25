@@ -24,6 +24,8 @@ use Time::Piece;
 use Time::Piece::MySQL;
 use Data::Dumper;
 use AnyEvent::Twitter::Stream;
+use Net::Twitter::Lite::WithAPIv1_1;
+use Scalar::Util 'blessed';
 use FileHandle;
  
 currency_set('USD','#,###.## ISK',FMT_COMMON);
@@ -147,6 +149,14 @@ $sth = $dbh->prepare('TRUNCATE killcache');
 $sth->execute;
 $sth->finish;
 
+my $nt = Net::Twitter::Lite::WithAPIv1_1->new(
+     consumer_key    => $consumer_key,
+     consumer_secret => $consumer_secret,
+     token           => $tw_token,
+     token_secret    => $tw_token_secret,
+     ssl             => 1,
+);
+
 POE::Kernel->run(); # silence the warning
 
 my $irc = POE::Component::IRC::State->spawn(
@@ -197,7 +207,7 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
            my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
            my $sth = $dbh->prepare('SELECT a.TwitchID, a.Tokens, b.TTL FROM `followers` a LEFT JOIN `TwitterID2TwitchID` b ON a.TwitchID = b.TwitchID WHERE b.TwitterID IS NOT NULL AND b.TwitterID like ?');
            my $id = "\@".$tweet->{user}{screen_name};
-           print "Got a tweet from $id.\n" if $debug==1;
+           print $clog "$logtime: Got a tweet from $id.\n" if $debug==1;
            $sth->execute($id) or die "Error: ".$sth->errstr;
            my $rows = $sth->rows;
            if ($rows > 0) {
@@ -231,6 +241,39 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
        }
     },
 );
+
+my $responder = AnyEvent::Twitter::Stream->new(
+    consumer_key    => $consumer_key,
+    consumer_secret => $consumer_secret,
+    token           => $tw_token,
+    token_secret    => $tw_token_secret,
+    method          => "filter",
+    track           => "#CostOfPLEX",
+    api_url         => "https://userstream.twitter.com/1.1/user.json",
+    timeout         => 300,
+    on_tweet        => sub { 
+       my $tweet = shift;
+       if ($tweet->{text}) {
+           my $screen_name = $tweet->{user}{screen_name};
+           my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
+           print $clog "$logtime: Got a tweet from $screen_name.\n" if $debug==1;
+           my $id = $tweet->{user}{id};
+           my %hubs = ("Jita",30000142,"Hek",30002053,"Rens",30002510,"Amarr",30002187,"Dodixie",30002659);
+           my $price="Market Hub Plex Prices - ";
+           while ((my $sysname, my $sysid) = each (%hubs)) {
+               $price = $price.$sysname.":".currency_format('USD', &GetXMLValue($sysid,29668,"//sell/min"), FMT_COMMON)." ";
+           }
+           my $result = eval { $nt->new_direct_message($price,{ screen_name => $screen_name }) };
+           if ( my $err = $@ ) {
+               die $@ unless blessed $err && $err->isa('Net::Twitter::Lite::Error');
+               print $elog "HTTP Response Code: ".$err->code."\n";
+               print $elog "HTTP Message......: ".$err->message."\n";
+               print $elog "Twitter error.....: ".$err->error."\n";
+           }
+       }
+    },
+);
+
 
 $done->recv;
 
