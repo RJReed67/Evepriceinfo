@@ -263,7 +263,7 @@ my $responder = AnyEvent::Twitter::Stream->new(
            while ((my $sysname, my $sysid) = each (%hubs)) {
                $price = $price.$sysname.":".currency_format('USD', &GetXMLValue($sysid,29668,"//sell/min"), FMT_COMMON)." ";
            }
-           my $result = eval { $nt->new_direct_message($price,{ screen_name => $screen_name }) };
+           my $result = eval { $nt->new_direct_message({ text => $price , user => $screen_name }) };
            if ( my $err = $@ ) {
                die $@ unless blessed $err && $err->isa('Net::Twitter::Lite::Error');
                print $elog "HTTP Response Code: ".$err->code."\n";
