@@ -501,7 +501,7 @@ sub irc_botcmd_addtweetid {
      my ($where, $user) = @_[ARG1, ARG2];
      $user =~ s/\s+$//;
      if ( ($user eq "?") || ($user !~ /^@\w+/) ) {
-          $irc->yield(privmsg => $where, "/me Use this command to add your TwitterID to the bot database. Include the @ with your ID.");
+          $irc->yield(privmsg => $where, "/me - Use this command to add your TwitterID to the bot database. Include the @ with your ID.");
      } else {
           my $sth = $dbh->prepare('SELECT * FROM TwitterID2TwitchID WHERE TwitchID LIKE ?');
           $sth->execute($nick) or die "Error: ".$sth->errstr;
@@ -510,9 +510,9 @@ sub irc_botcmd_addtweetid {
           if (!$ref) {
                $sth = $dbh->prepare('INSERT INTO TwitterID2TwitchID SET TwitchID = ?, TwitterID = ?, TTL = NULL');
                $sth->execute($nick,$user) or die "Error: ".$sth->errstr;
-               $irc->yield(privmsg => $where, "/me $nick set to $user.");
+               $irc->yield(privmsg => $where, "/me - $nick set to $user.");
           } else {
-               $irc->yield(privmsg => $where, "/me $nick already in database.");
+               $irc->yield(privmsg => $where, "/me - $nick already in database.");
           }
      }
      return;
@@ -525,7 +525,7 @@ sub irc_botcmd_info {
      my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
      $sth->execute($arg);
      my $ref = $sth->fetchrow_hashref();
-     $irc->yield(privmsg => $where, "/me ".$ref->{'DisplayInfo'});
+     $irc->yield(privmsg => $where, "/me - ".$ref->{'DisplayInfo'});
      return;
 }
 
@@ -546,13 +546,13 @@ sub irc_botcmd_add {
           $sth->execute($user);
           my $ref = $sth->fetchrow_hashref();
           if (!$ref) {
-               $irc->yield(privmsg => $where, "/me User $user not found in token table.");
+               $irc->yield(privmsg => $where, "/me - User $user not found in token table.");
           } else {
                my $cur_tokens = $ref->{'Tokens'};
                $sth = $dbh->prepare('UPDATE followers SET Tokens = ?, TTL = ?  WHERE TwitchID like ?');
                $cur_tokens = $cur_tokens + $change;
                $sth->execute($cur_tokens,$ref->{'TTL'},$user);
-               $irc->yield(privmsg => $where, "/me $change tokens added to $user\'s balance.");
+               $irc->yield(privmsg => $where, "/me - $change tokens added to $user\'s balance.");
                $sth->finish;
                $sth = $dbh->prepare('UPDATE giveaway SET AutoGive=0 WHERE GiveKey=?');
                $sth->execute($giveaway_key);
@@ -571,7 +571,7 @@ sub irc_botcmd_wg500 {
      $arg =~ s/\s+$//;
      if ($irc->is_channel_operator($where,$nick)) {
           if ($arg) {
-               $irc->yield(privmsg => $where, "/me All isk from loot/salvage/ore gathered during the week, will be added to the weekly drawing. 500 Token req to be entered automatically. You do no need to be present to win. Drawing is done on Sunday of each week.");
+               $irc->yield(privmsg => $where, "/me - All isk from loot/salvage/ore gathered during the week, will be added to the weekly drawing. 500 Token req to be entered automatically. You do no need to be present to win. Drawing is done on Sunday of each week.");
           } else {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE Tokens > 499 ORDER BY RAND() LIMIT 1');
                $sth->execute();
@@ -590,8 +590,8 @@ sub irc_botcmd_wg500 {
                     $sth = $dbh->prepare('INSERT INTO giveaway SET GiveTitle=?, Threshold=500, AutoGive=?, StartDate=NOW(), EndDate=NOW(), Winner=?');
                     $sth->execute("Weekly Giveaway",0,$winner);
                     $sth->finish;
-                    $irc->yield(privmsg => $where, "/me Congratulations $winner2, you've won this week's giveaway!");
-                    $irc->yield(privmsg => $where, "/me $winner! Come On Down!");
+                    $irc->yield(privmsg => $where, "/me - Congratulations $winner2, you've won this week's giveaway!");
+                    $irc->yield(privmsg => $where, "/me - $winner! Come On Down!");
                }
           }
      }
@@ -604,13 +604,13 @@ sub irc_botcmd_subgive {
      $arg =~ s/\s+$//;
      if ($irc->is_channel_operator($where,$nick)) {
           if ($arg) {
-               $irc->yield(privmsg => $where, "/me Random draw of current subscribers.");
+               $irc->yield(privmsg => $where, "/me - Random draw of current subscribers.");
           } else {
                my $sth = $dbh->prepare('SELECT * FROM Rushlock_TwitchSubs ORDER BY RAND() LIMIT 1');
                $sth->execute();
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me No winner found!");
+                    $irc->yield(privmsg => $where, "/me - No winner found!");
                } else {
                     my $winner = $ref->{'TwitchName'};
                     my $winner2 = "";
@@ -619,8 +619,8 @@ sub irc_botcmd_subgive {
                     } else {
                        $winner2 = $winner." (not following)";
                     }
-                    $irc->yield(privmsg => $where, "/me Congratulations $winner2, you've won this week's Subscriber Giveaway!");
-                    $irc->yield(privmsg => $where, "/me $winner! Come On Down!");
+                    $irc->yield(privmsg => $where, "/me - Congratulations $winner2, you've won this week's Subscriber Giveaway!");
+                    $irc->yield(privmsg => $where, "/me - $winner! Come On Down!");
                }
           }
      }
@@ -639,13 +639,13 @@ sub irc_botcmd_take {
           $sth->execute($user);
           my $ref = $sth->fetchrow_hashref();
           if (!$ref) {
-               $irc->yield(privmsg => $where, "/me User $user not found in token table.");
+               $irc->yield(privmsg => $where, "/me - User $user not found in token table.");
           } else {
                my $cur_tokens = $ref->{'Tokens'};
                $sth = $dbh->prepare('UPDATE followers SET Tokens = ?, TTL = ? WHERE TwitchID like ?');
                $cur_tokens = $cur_tokens - $change;
                $sth->execute($cur_tokens,$ref->{'TTL'},$user);
-               $irc->yield(privmsg => $where, "/me $change tokens taken from $user\'s balance.");
+               $irc->yield(privmsg => $where, "/me - $change tokens taken from $user\'s balance.");
           }
      }
 
@@ -663,15 +663,15 @@ sub irc_botcmd_token {
                $sth->execute($arg);
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me User $arg not found in token table.");
+                    $irc->yield(privmsg => $where, "/me - User $arg not found in token table.");
                } else {
-                    $irc->yield(privmsg => $where, "/me $arg has $ref->{'Tokens'} tokens.");
+                    $irc->yield(privmsg => $where, "/me - $arg has $ref->{'Tokens'} tokens.");
                }
           } else {
                if (&tw_stream_online) {
-                    $irc->yield(privmsg => $where, "/me Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter. Check your token balance AFTER the cast with the !token command");
+                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter. Check your token balance AFTER the cast with the !token command");
                } else {
-                    $irc->yield(privmsg => $where, "/me Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter.");
+                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter.");
                }
           }
      } else {
@@ -680,24 +680,24 @@ sub irc_botcmd_token {
                $sth->execute($nick);
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me User $nick not found in token table.");
+                    $irc->yield(privmsg => $where, "/me - User $nick not found in token table.");
                } else {
-                    $irc->yield(privmsg => $where, "/me $nick has $ref->{'Tokens'} tokens.");
+                    $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
                }
           } elsif ( &tw_is_subscriber($nick) ) {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
                $sth->execute($nick);
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me User $nick not found in token table.");
+                    $irc->yield(privmsg => $where, "/me - User $nick not found in token table.");
                } else {
-                    $irc->yield(privmsg => $where, "/me $nick has $ref->{'Tokens'} tokens.");
+                    $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
                }
           } elsif (!&tw_is_subscriber($nick)) {
                my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
                $sth->execute("sub");
                my $ref = $sth->fetchrow_hashref();
-               $irc->yield(privmsg => $where, "/me ".$ref->{'DisplayInfo'});
+               $irc->yield(privmsg => $where, "/me - ".$ref->{'DisplayInfo'});
           }
      }
      $sth->finish;
@@ -714,11 +714,11 @@ sub irc_botcmd_give {
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
      print $clog "$logtime: Give function called by: $nick, with Args: $arg\n" if $debug==1;
      if (!$arg) {
-          $irc->yield(privmsg => $where, "/me Not a valid give command. Valid commands are close, draw, history, and open # Title.");
+          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, and open # Title.");
           return;
      } elsif ($arg =~ /^open/) {
           if ($giveaway_open == 1) {
-               $irc->yield(privmsg => $where, "/me A giveaway is still open. Please close the giveaway before attempting to do a new one.");
+               $irc->yield(privmsg => $where, "/me - A giveaway is still open. Please close the giveaway before attempting to do a new one.");
                return;
           }
           my $sth = $dbh->prepare('TRUNCATE TABLE entrylist');
@@ -734,22 +734,22 @@ sub irc_botcmd_give {
           $sth = $dbh->prepare('SELECT GiveKey FROM giveaway ORDER BY GiveKey DESC LIMIT 1');
           $sth->execute();
           ($giveaway_key) = $sth->fetchrow_array;
-          $irc->yield(privmsg => $where, "/me Drawing for $title, now open. You must have at least $threshold token(s) to enter. Use the !enter command to enter drawing! Good Luck!");
+          $irc->yield(privmsg => $where, "/me - Drawing for $title, now open. You must have at least $threshold token(s) to enter. Use the !enter command to enter drawing! Good Luck!");
      } elsif ($arg =~ /^close/) {
           if ($giveaway_open == 1) {
                my $sth = $dbh->prepare('UPDATE giveaway SET EndDate=NOW() WHERE GiveKey=?');
                $sth->execute($giveaway_key);
                $giveaway_open = -1;
-               $irc->yield(privmsg => $where, "/me Drawing for $giveaway_title, is now closed. No more !enter commands will be accepted.");
+               $irc->yield(privmsg => $where, "/me - Drawing for $giveaway_title, is now closed. No more !enter commands will be accepted.");
           }
      } elsif ($arg =~ /^draw/) {
           if ($giveaway_open == 1) {
-               $irc->yield(privmsg => $where, "/me Giveaway is still open. Please close the giveaway before attempting to draw a winner.");
+               $irc->yield(privmsg => $where, "/me - Giveaway is still open. Please close the giveaway before attempting to draw a winner.");
           } else {
                my $sql = 'SELECT * FROM entrylist';
                my @ref = @{$dbh->selectcol_arrayref($sql)};
                my $count = @ref;
-               $irc->yield(privmsg => $where, "/me There are $count entries in the $giveaway_title.");
+               $irc->yield(privmsg => $where, "/me - There are $count entries in the $giveaway_title.");
                my $winner = $ref[int(rand(0+$count))];
                my $sth = $dbh->prepare('UPDATE giveaway SET Winner=? WHERE GiveKey=?');
                $sth->execute($winner,$giveaway_key);
@@ -759,18 +759,18 @@ sub irc_botcmd_give {
                } else {
                   $winner2 = $winner." (not following)";
                }
-               $irc->yield(privmsg => $where, "/me The winner of $giveaway_title is $winner2! Congratulations!");
-               $irc->yield(privmsg => $where, "/me $winner! Come On Down!");
+               $irc->yield(privmsg => $where, "/me - The winner of $giveaway_title is $winner2! Congratulations!");
+               $irc->yield(privmsg => $where, "/me - $winner! Come On Down!");
           }
      } elsif ($arg =~ /^history/) {
           my $sth = $dbh->prepare('SELECT * FROM giveaway ORDER BY GiveKey DESC LIMIT 3');
           $sth->execute;
-          $irc->yield(privmsg => $where, "/me The last 3 winners were:");
+          $irc->yield(privmsg => $where, "/me - The last 3 winners were:");
           while (my @row = $sth->fetchrow_array) {
-               $irc->yield(privmsg => $where, "/me $row[5] : $row[6], won $row[1].");
+               $irc->yield(privmsg => $where, "/me - $row[5] : $row[6], won $row[1].");
           }
      } else {
-          $irc->yield(privmsg => $where, "/me Not a valid give command. Valid commands are close, draw, history, and open # Title.");
+          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, and open # Title.");
      }
      $sth->finish;
      return;
@@ -783,7 +783,7 @@ sub irc_botcmd_tgw {
           return;
      }
      if ($giveaway_open == 1) {
-          $irc->yield(privmsg => $where, "/me A giveaway is still open. Please close the giveaway before attempting to do a new one.");
+          $irc->yield(privmsg => $where, "/me - A giveaway is still open. Please close the giveaway before attempting to do a new one.");
           return;
      }
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
@@ -792,7 +792,7 @@ sub irc_botcmd_tgw {
      $giveaway_autogive = 1;
      $_[ARG2]="open 1 $token_give Tokens";
      $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
-     $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me Only 1 more minute until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
+     $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me - Only 1 more minute until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
      $_[ARG2]="close";
      $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
      $_[ARG2]="draw";
@@ -820,14 +820,14 @@ sub irc_botcmd_t1sgw {
           my %ship=("f","Frigate","d","Destroyer","c","Cruiser","bc","Battle Cruiser","bs","Battleship");
           $_[ARG2]="open 1 Tech 1 $ship{$shiptype} giveaway of winner's choice, sponsored by $contact";
           $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me - One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
           $_[ARG2]="close";
           $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
           $_[ARG2]="draw";
           $kernel->delay_set(irc_botcmd_give => 190, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => 195, $_[ARG0],$_[ARG1],"/me Please contact $contact for your prize.");
+          $kernel->delay_set(say => 195, $_[ARG0],$_[ARG1],"/me - Please contact $contact for your prize.");
      } else {
-          $irc->yield(privmsg => $where, "/me Cmd must contain f,d,c,bc,bs for ship type.");
+          $irc->yield(privmsg => $where, "/me - Cmd must contain f,d,c,bc,bs for ship type.");
      }
      return;
 }
@@ -840,11 +840,11 @@ sub irc_botcmd_top10 {
      }
      my $sth = $dbh->prepare('SELECT TwitchID,Tokens FROM followers ORDER BY Tokens DESC LIMIT 10');
      $sth->execute();
-     $irc->yield(privmsg => $where, "/me The top 10 token holders are:");
+     $irc->yield(privmsg => $where, "/me - The top 10 token holders are:");
      my $rank = 0;
      while (my @row = $sth->fetchrow_array) {
           $rank = $rank + 1;
-          $irc->yield(privmsg => $where, "/me $rank: $row[0], with $row[1] tokens.");
+          $irc->yield(privmsg => $where, "/me - $rank: $row[0], with $row[1] tokens.");
      }
      $sth->finish;
 }
@@ -863,7 +863,7 @@ sub irc_botcmd_botstats {
      $sth->execute();
      my ($total_online) = $sth->fetchrow_array;
      $sth->finish;
-     $irc->yield(privmsg => $where, "/me Total usernames in DB: $total_users, Current users in chat: $total_online.");
+     $irc->yield(privmsg => $where, "/me - Total usernames in DB: $total_users, Current users in chat: $total_online.");
 }
 
 sub say {
@@ -891,7 +891,7 @@ sub irc_botcmd_reload {
      $log_chat = $ref->{'log_chat'}->{'value'};
      $token_give = $ref->{'token_give'}->{'value'};
      $sth->finish;
-     $irc->yield(privmsg => $where, "/me Values Updated.");
+     $irc->yield(privmsg => $where, "/me - Values Updated.");
      return;
 }
 
@@ -912,7 +912,7 @@ sub irc_botcmd_enter {
                }
           }
      } else {
-          $irc->yield(privmsg => $where, "/me No contest is open, Taking 1 token from $nick!");
+          $irc->yield(privmsg => $where, "/me - No contest is open, Taking 1 token from $nick!");
      }
      $sth->finish;
      return;
@@ -928,7 +928,7 @@ sub irc_botcmd_setnews {
           $arg =~ s/^\!\w//;
           my $sth = $dbh->prepare('UPDATE epi_info_cmds SET DisplayInfo=? WHERE CmdName LIKE ?');
           $sth->execute($arg,'news');
-          $irc->yield(privmsg => $where, "/me News Set!");
+          $irc->yield(privmsg => $where, "/me - News Set!");
      }  
      return;
 }
@@ -945,11 +945,11 @@ sub irc_botcmd_yield {
      $sth->execute($arg);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
-        $irc->yield(privmsg => $where, "/me $arg is not a valid Item.");
+        $irc->yield(privmsg => $where, "/me - $arg is not a valid Item.");
         return -1;
      }
      my %items = %$ref;
-     my $msg = "/me $arg yields: ";
+     my $msg = "/me - $arg yields: ";
      foreach my $mineral (@mins) {
           my $amt = $ref->{$mineral};
           if ($amt > 0) {
@@ -971,11 +971,11 @@ sub irc_botcmd_ice {
      $sth->execute($arg);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
-        $irc->yield(privmsg => $where, "/me $arg is not a valid Ice Type.");
+        $irc->yield(privmsg => $where, "/me - $arg is not a valid Ice Type.");
         return -1;
      }
      my %items = %$ref;
-     my $msg = "/me $arg yields: ";
+     my $msg = "/me - $arg yields: ";
      foreach my $mineral (@mins) {
           my $amt = $ref->{$mineral};
           if ($amt > 0) {
@@ -994,11 +994,11 @@ sub irc_botcmd_plex {
      $arg =~ s/\s+$//;
      &onlinecheck($nick);
      if (not defined $arg) {
-          $irc->yield(privmsg => $where, "/me Query must have in a SystemName or the word Hub. (e.g. !plex Hub)");
+          $irc->yield(privmsg => $where, "/me - Query must have in a SystemName or the word Hub. (e.g. !plex Hub)");
           return;
      }
      if ($arg eq "?") {
-          $irc->yield(privmsg => $where, "/me PLEX is an in-game item, that can be purchased with real money or in-game currency called ISK. PLEX gives you an extra 30 days of game time on your Eve Online account.");
+          $irc->yield(privmsg => $where, "/me - PLEX is an in-game item, that can be purchased with real money or in-game currency called ISK. PLEX gives you an extra 30 days of game time on your Eve Online account.");
           return;
      }
      $arg = lc($arg);
@@ -1008,7 +1008,7 @@ sub irc_botcmd_plex {
           while ((my $sysname, my $sysid) = each (%hubs)) {
                $price = $price.$sysname.":".currency_format('USD', &GetXMLValue($sysid,29668,"//sell/min"), FMT_COMMON)." ";
           }
-          $irc->yield(privmsg => $where, "/me Market Hub Prices for PLEX - $price");
+          $irc->yield(privmsg => $where, "/me - Market Hub Prices for PLEX - $price");
      } else {
      my $sysid = &SystemLookup($arg,$where);
      if ($sysid == -1) {
@@ -1017,9 +1017,9 @@ sub irc_botcmd_plex {
           my $maxprice = &GetXMLValue($sysid,29668,"//sell/min");
           if ($maxprice != 0) {
                $maxprice = currency_format('USD', $maxprice, FMT_COMMON);
-               $irc->yield(privmsg => $where, "/me PLEX is selling for $maxprice in $arg.");
+               $irc->yield(privmsg => $where, "/me - PLEX is selling for $maxprice in $arg.");
           } else {
-               $irc->yield(privmsg => $where, "/me There is no PLEX for sell in $arg.");
+               $irc->yield(privmsg => $where, "/me - There is no PLEX for sell in $arg.");
           }
      }
      return;
@@ -1031,7 +1031,7 @@ sub irc_botcmd_pc {
      my ($sysname, $itemname) = split(' ', $arg, 2);
      $itemname =~ s/\s+$//;
      if (not defined $itemname) {
-          $irc->yield(privmsg => $where, "/me Query must be in the form of SystemName and ItemName. (e.g. !pc Rens Punisher)");
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of SystemName and ItemName. (e.g. !pc Rens Punisher)");
           return;
      }
      my $sysid = &SystemLookup($sysname,$where);
@@ -1041,9 +1041,9 @@ sub irc_botcmd_pc {
      my $maxprice = &GetXMLValue($sysid,$itemid,"//sell/min");
      if ($maxprice != 0) {
           $maxprice = currency_format('USD', $maxprice, FMT_COMMON);
-          $irc->yield(privmsg => $where, "/me $itemname is selling for $maxprice in $sysname.");
+          $irc->yield(privmsg => $where, "/me - $itemname is selling for $maxprice in $sysname.");
      } else {
-          $irc->yield(privmsg => $where, "/me There is no $itemname for sell in $sysname.");
+          $irc->yield(privmsg => $where, "/me - There is no $itemname for sell in $sysname.");
      }
      return;
 }
@@ -1054,7 +1054,7 @@ sub irc_botcmd_rpc {
      my ($regname, $itemname) = split(',', $arg, 2);
      $itemname =~ s/\s+$//;
      if (not defined $itemname) {
-          $irc->yield(privmsg => $where, "/me Query must be in the form of RegionName,ItemName. (e.g. !rpc Lonetrek,Punisher)");
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of RegionName,ItemName. (e.g. !rpc Lonetrek,Punisher)");
           return;
      }
      my $regid = &RegionLookup($regname,$where);
@@ -1064,9 +1064,9 @@ sub irc_botcmd_rpc {
      my $maxprice = &GetXMLValueReg($regid,$itemid,"//sell/min");
      if ($maxprice != 0) {
           $maxprice = currency_format('USD', $maxprice, FMT_COMMON);
-          $irc->yield(privmsg => $where, "/me $itemname is selling for $maxprice in $regname region.");
+          $irc->yield(privmsg => $where, "/me - $itemname is selling for $maxprice in $regname region.");
      } else {
-          $irc->yield(privmsg => $where, "/me There is no $itemname for sell in $regname region.");
+          $irc->yield(privmsg => $where, "/me - There is no $itemname for sell in $regname region.");
      }
      return;
 }
@@ -1077,7 +1077,7 @@ sub irc_botcmd_pca {
      $arg =~ s/\s+$//;
      my ($sysname, $itemname) = split(' ', $arg, 2);
      if (not defined $itemname) {
-          $irc->yield(privmsg => $where, "/me Query must be in the form of SystemName and ItemName. (e.g. !pca Rens Punisher)");
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of SystemName and ItemName. (e.g. !pca Rens Punisher)");
           return;
      }
      my $sysid = &SystemLookup($sysname,$where);
@@ -1088,9 +1088,9 @@ sub irc_botcmd_pca {
      my $volume = &GetXMLValue($sysid,$itemid,"//all/volume");
      if ($avgprice != 0) {
           $avgprice = currency_format('USD', $avgprice, FMT_COMMON);
-          $irc->yield(privmsg => $where, "/me $itemname has sold $volume units in the past 24 hours, at an average price of $avgprice in $sysname.");
+          $irc->yield(privmsg => $where, "/me - $itemname has sold $volume units in the past 24 hours, at an average price of $avgprice in $sysname.");
      } else {
-          $irc->yield(privmsg => $where, "/me There is no $itemname for sell in $sysname.");
+          $irc->yield(privmsg => $where, "/me - There is no $itemname for sell in $sysname.");
      }
      return;
 }
@@ -1111,9 +1111,9 @@ sub irc_botcmd_hpc {
           }
      }
      if ($price ne "") {
-          $irc->yield(privmsg => $where, "/me Market Hub Prices for $arg - $price");
+          $irc->yield(privmsg => $where, "/me - Market Hub Prices for $arg - $price");
      } else {
-          $irc->yield(privmsg => $where, "/me $arg is not available at any market hub.");
+          $irc->yield(privmsg => $where, "/me - $arg is not available at any market hub.");
      }
 }
  
@@ -1130,9 +1130,9 @@ sub irc_botcmd_server {
      $xpath="//result/serverOpen/text()";
      my $online = $doc->findnodes($xpath);
      if ($online =~ /True/) {
-          $irc->yield(privmsg => $where, "/me Server is Online with $value Players. Server Time: $time");
+          $irc->yield(privmsg => $where, "/me - Server is Online with $value Players. Server Time: $time");
      } else {
-          $irc->yield(privmsg => $where, "/me Server is currently Offline. Server Time: $time");
+          $irc->yield(privmsg => $where, "/me - Server is currently Offline. Server Time: $time");
      }
      return;
 }
@@ -1142,12 +1142,12 @@ sub irc_botcmd_zkb {
      my ($where, $charname) = @_[ARG1, ARG2];
      &onlinecheck($nick);
      if (not defined $charname) {
-          $irc->yield(privmsg => $where, "/me Query must be in the form of a single character name. (e.g. !zkb Ira Warwick)");
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of a single character name. (e.g. !zkb Ira Warwick)");
           return;
      }
      my $charid = &CharIDLookup($charname);
      if ($charid == -1) {
-          $irc->yield(privmsg => $where, "/me There is no $charname in the Eve Universe.");
+          $irc->yield(privmsg => $where, "/me - There is no $charname in the Eve Universe.");
           return;
      };
      &ZkbLookup($charname,$charid,$where);
@@ -1158,12 +1158,12 @@ sub irc_botcmd_cinfo {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $corpname) = @_[ARG1, ARG2];
      if (not defined $corpname) {
-          $irc->yield(privmsg => $where, "/me Query must be in the form of a single corporation name. (e.g. !cinfo The Romantics)");
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of a single corporation name. (e.g. !cinfo The Romantics)");
           return;
      }
      my $corpid = &CharIDLookup($corpname);
      if ($corpid == -1) {
-          $irc->yield(privmsg => $where, "/me There is not a corporation named $corpname in the Eve Universe.");
+          $irc->yield(privmsg => $where, "/me - There is not a corporation named $corpname in the Eve Universe.");
           return;
      };
      &CorpLookup($corpname,$corpid,$where);
@@ -1174,7 +1174,7 @@ sub CorpLookup {
      my $url = "https://api.eveonline.com/corp/CorporationSheet.xml.aspx?corporationID=$_[1]";
      my $content = get($url);
      if (not defined $content) {
-          $irc->yield(privmsg => $_[2], "/me $_[0] was not found.");
+          $irc->yield(privmsg => $_[2], "/me - $_[0] was not found.");
           return;
      }    
      my $parser = new XML::LibXML;
@@ -1185,7 +1185,7 @@ sub CorpLookup {
      my $memcount = $doc->findvalue($xpath);
      $xpath="//stationName";
      my $station = $doc->findvalue($xpath);
-     $irc->yield(privmsg => $_[2], "/me $_[0] - CEO: $ceoname - Members: $memcount - HQ: $station");
+     $irc->yield(privmsg => $_[2], "/me - $_[0] - CEO: $ceoname - Members: $memcount - HQ: $station");
      return;
 }
 
@@ -1212,7 +1212,7 @@ sub ItemLookup {
      $sth->execute($_[0]);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
-        $irc->yield(privmsg => $_[1], "/me $_[0] is not a valid Item.");
+        $irc->yield(privmsg => $_[1], "/me - $_[0] is not a valid Item.");
         return -1;
      }
      my $itemid = $ref->{'ItemID'};
@@ -1225,7 +1225,7 @@ sub SystemLookup {
      $sth->execute($_[0]);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
-        $irc->yield(privmsg => $_[1], "/me $_[0] is not a valid System.");
+        $irc->yield(privmsg => $_[1], "/me - $_[0] is not a valid System.");
         return -1;
      }
      my $sysid = $ref->{'SystemID'};
@@ -1238,7 +1238,7 @@ sub RegionLookup {
      $sth->execute($_[0]);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
-        $irc->yield(privmsg => $_[1], "/me $_[0] is not a valid Region.");
+        $irc->yield(privmsg => $_[1], "/me - $_[0] is not a valid Region.");
         return -1;
      }
      my $regid = $ref->{'RegionID'};
@@ -1289,7 +1289,7 @@ sub ZkbLookup {
           my $iskdest = $doc->findvalue($xpath);
           $xpath="//row[\@type='isk']/\@lost";
           my $isklost = $doc->findvalue($xpath);
-          my $msg = "/me $_[0] has ";
+          my $msg = "/me - $_[0] has ";
           if ($shipdest == 0) {
                $msg = $msg."not destroyed any ships, ";
           } elsif ($shipdest == 1) {
@@ -1336,7 +1336,7 @@ sub CheckzkbCache {
                my $iskdest = $ref->{'DestISK'};
                my $shiplost = $ref->{'LostShips'};
                my $isklost = $ref->{'LostISK'};
-               my $msg = "/me $_[1] has ";
+               my $msg = "/me - $_[1] has ";
                if ($shipdest == 0) {
                     $msg = $msg."not destroyed any ships, ";
                } elsif ($shipdest == 1) {
