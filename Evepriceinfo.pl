@@ -114,7 +114,7 @@ if ($log_token == 1) {
      $tlog->autoflush(1);
 }
 open($clog, "+>","$console_log") if $debug == 1;
-open($elog, "+>","$error_log");
+open($elog, ">>","$error_log");
 $stdout = *STDOUT;
 $stderr = *STDERR;
 *STDERR = $elog;
@@ -215,7 +215,7 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
                 my ($twitchid,$tokens,$ttl) = @row;
                 print $clog "Twitter user: $id is $twitchid.\n" if $debug==1;
                 $sth->finish;
-                return if $_->[0] =~ m/$token_exclude/i;
+                return if $twitchid =~ m/$token_exclude/i;
                 my $dt1 = DateTime::Format::MySQL->parse_datetime($ttl);
                 my $dt2 = DateTime->now(time_zone=>'local');
                 my $days = ($dt2 - $dt1)->days;
