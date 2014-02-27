@@ -1375,7 +1375,7 @@ sub CheckzkbCache {
 
 sub tw_stream_online {
      my $ua = LWP::UserAgent->new;
-     my $live = $ua->get($tw_following,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>"OAuth jz7l11priens09ssui5fzat0ok5rp9w");
+     my $live = $ua->get($tw_following,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>$tw_pwd);
      my $code = $live->code();
      if ($code =~ /^5/) { return 0; }
      my $decode = decode_json( $live->content );
@@ -1389,7 +1389,7 @@ sub tw_user_follow {
      my $url = $tw_follow;
      $url =~ s/USER/$_[0]/g;
      my $ua = LWP::UserAgent->new;
-     my $live = $ua->get($url,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>"OAuth jz7l11priens09ssui5fzat0ok5rp9w");
+     my $live = $ua->get($url,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>$tw_pwd);
      my $code = $live->code();
      if ($code =~ /^5/) { return 0; }
      print $live->status_line."\n" if $debug==1;
