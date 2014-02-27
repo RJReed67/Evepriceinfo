@@ -190,6 +190,11 @@ my $listener = AnyEvent::Twitter::Stream->new(
           $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet->{text}") for @channels;
        }
     },
+    on_error        => sub {
+       my $error = shift;
+       warnf($error);
+       $done->send;
+    },
 );
 
 my $listener2 = AnyEvent::Twitter::Stream->new(
@@ -240,6 +245,11 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
            }
        }
     },
+    on_error        => sub {
+       my $error = shift;
+       warnf($error);
+       $done->send;
+    },
 );
 
 my $responder = AnyEvent::Twitter::Stream->new(
@@ -271,6 +281,11 @@ my $responder = AnyEvent::Twitter::Stream->new(
                print $elog "Twitter error.....: ".$err->error."\n";
            }
        }
+    },
+    on_error        => sub {
+       my $error = shift;
+       warnf($error);
+       $done->send;
     },
 );
 
@@ -707,10 +722,10 @@ sub irc_botcmd_token {
 sub irc_botcmd_give {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
-     $arg =~ s/\s+$//;
      if (!$irc->is_channel_operator($where,$nick)) {
           return;
      }
+     $arg =~ s/\s+$//;
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
      print $clog "$logtime: Give function called by: $nick, with Args: $arg\n" if $debug==1;
      if (!$arg) {
@@ -1029,11 +1044,11 @@ sub irc_botcmd_pc {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      my ($sysname, $itemname) = split(' ', $arg, 2);
-     $itemname =~ s/\s+$//;
      if (not defined $itemname) {
           $irc->yield(privmsg => $where, "/me - Query must be in the form of SystemName and ItemName. (e.g. !pc Rens Punisher)");
           return;
      }
+     $itemname =~ s/\s+$//;
      my $sysid = &SystemLookup($sysname,$where);
      if ($sysid == -1) { return; };
      my $itemid = &ItemLookup($itemname,$where);
