@@ -729,7 +729,7 @@ sub irc_botcmd_give {
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
      print $clog "$logtime: Give function called by: $nick, with Args: $arg\n" if $debug==1;
      if (!$arg) {
-          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, and open # Title.");
+          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, open # Title, timed #mins #tokenreq Title.");
           return;
      } elsif ($arg =~ /^open/) {
           if ($giveaway_open == 1) {
@@ -750,6 +750,31 @@ sub irc_botcmd_give {
           $sth->execute();
           ($giveaway_key) = $sth->fetchrow_array;
           $irc->yield(privmsg => $where, "/me - Drawing for $title, now open. You must have at least $threshold token(s) to enter. Use the !enter command to enter drawing! Good Luck!");
+     } elsif ($arg =~ /^timed/) {
+          if ($giveaway_open == 1) {
+               $irc->yield(privmsg => $where, "/me - A giveaway is still open. Please close the giveaway before attempting to do a new one.");
+               return;
+          }
+          my ($cmd,$mins,$threshold,$title) = split(' ',$arg,4);
+          if ($mins < 1 || $mins > 9) {
+               $irc->yield(privmsg => $where, "/me - The number of minutes must be between 1 and 9 minutes.");
+               return;
+          }
+          if ($title eq "") {
+               $irc->yield(privmsg => $where, "/me - The format must be: timed #min #tokenreq Title of Giveaway.");
+               return;
+          }
+          print $clog "$logtime: Time Giveaway function called by: $nick\n with Args: $arg" if $debug==1;
+          my ($kernel, $self) = @_[KERNEL, OBJECT];
+          my $sectimer = $mins * 60;
+          $_[ARG2]="open $threshold $title";
+          $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
+          $kernel->delay_set(say => $sectimer - 60, $_[ARG0],$_[ARG1],"/me - Only 1 more minute until the giveaway for $title is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => $sectimer - 10, $_[ARG0],$_[ARG1],"/me - Only 10 more seconds until the giveaway for $title is closed. Get your !enter cmds in now!");
+          $_[ARG2]="close";
+          $kernel->delay_set(irc_botcmd_give => $sectimer, $_[ARG0],$_[ARG1],$_[ARG2] );
+          $_[ARG2]="draw";
+          $kernel->delay_set(irc_botcmd_give => $sectimer + 10, $_[ARG0],$_[ARG1],$_[ARG2] );
      } elsif ($arg =~ /^close/) {
           if ($giveaway_open == 1) {
                my $sth = $dbh->prepare('UPDATE giveaway SET EndDate=NOW() WHERE GiveKey=?');
@@ -785,7 +810,7 @@ sub irc_botcmd_give {
                $irc->yield(privmsg => $where, "/me - $row[5] : $row[6], won $row[1].");
           }
      } else {
-          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, and open # Title.");
+          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, open # Title, timed #mins #tokenreq Title.");
      }
      $sth->finish;
      return;
@@ -808,6 +833,7 @@ sub irc_botcmd_tgw {
      $_[ARG2]="open 1 $token_give Tokens";
      $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
      $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me - Only 1 more minute until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
+     $kernel->delay_set(say => 170, $_[ARG0],$_[ARG1],"/me - Only 10 more seconds until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
      $_[ARG2]="close";
      $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
      $_[ARG2]="draw";
@@ -836,6 +862,7 @@ sub irc_botcmd_t1sgw {
           $_[ARG2]="open 1 Tech 1 $ship{$shiptype} giveaway of winner's choice, sponsored by $contact";
           $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
           $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me - One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => 170, $_[ARG0],$_[ARG1],"/me - Ten seconds left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
           $_[ARG2]="close";
           $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
           $_[ARG2]="draw";
@@ -1375,7 +1402,7 @@ sub CheckzkbCache {
 
 sub tw_stream_online {
      my $ua = LWP::UserAgent->new;
-     my $live = $ua->get($tw_following,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>$tw_pwd);
+     my $live = $ua->get($tw_following,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>"$tw_pwd");
      my $code = $live->code();
      if ($code =~ /^5/) { return 0; }
      my $decode = decode_json( $live->content );
@@ -1389,7 +1416,7 @@ sub tw_user_follow {
      my $url = $tw_follow;
      $url =~ s/USER/$_[0]/g;
      my $ua = LWP::UserAgent->new;
-     my $live = $ua->get($url,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>$tw_pwd);
+     my $live = $ua->get($url,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>"$tw_pwd");
      my $code = $live->code();
      if ($code =~ /^5/) { return 0; }
      print $live->status_line."\n" if $debug==1;
