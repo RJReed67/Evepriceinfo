@@ -113,12 +113,15 @@ if ($log_token == 1) {
      $tlog = FileHandle->new(">> $token_log");
      $tlog->autoflush(1);
 }
-open($clog, "+>","$console_log") if $debug == 1;
+if ($debug == 1) {
+     $clog = FileHandle->new("+> $console_log");
+     $clog->autoflush(1);
+}
 open($elog, ">>","$error_log");
 $stdout = *STDOUT;
 $stderr = *STDERR;
 *STDERR = $elog;
-*STDOUT = $clog if $debug == 1;
+#*STDOUT = $clog if $debug == 1;
  
 my @cmds = ();
 my %help = ();
@@ -192,7 +195,7 @@ my $listener = AnyEvent::Twitter::Stream->new(
     },
     on_error        => sub {
        my $error = shift;
-       warnf($error);
+       warn($error);
        $done->send;
     },
 );
@@ -247,7 +250,7 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
     },
     on_error        => sub {
        my $error = shift;
-       warnf($error);
+       warn($error);
        $done->send;
     },
 );
@@ -284,7 +287,7 @@ my $responder = AnyEvent::Twitter::Stream->new(
     },
     on_error        => sub {
        my $error = shift;
-       warnf($error);
+       warn($error);
        $done->send;
     },
 );
@@ -297,16 +300,15 @@ $poe_kernel->run();
 sub _start {
      my ($kernel, $heap) = @_[KERNEL ,HEAP];
      $heap->{connector} = POE::Component::IRC::Plugin::Connector->new();
+     $irc->plugin_add('Connector' => $heap->{connector} );
      $heap->{next_alarm_time} = int(time()) + $interval;
      $kernel->alarm(tick => $heap->{next_alarm_time});
-     $irc->plugin_add('Connector' => $heap->{connector} );
      $irc->plugin_add('Logger' => POE::Component::IRC::Plugin::Logger->new(
           Path     => $log_dir,
           DCC      => 0,
           Private  => 0,
           Public   => $log_chat,
      ));
-     $kernel->delay( 'lag_o_meter' => 60 );
      $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
         Addressed => 0,
         Prefix => '!',
@@ -500,14 +502,6 @@ sub irc_353 {
 sub irc_001 {
      $irc->yield(join => $_) for @channels;
      $irc->yield(privmsg => $_, '/color blue') for @channels;
-     return;
-}
-
-sub lag_o_meter {
-     my($kernel,$heap) = @_[KERNEL,HEAP];
-     my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
-     print $clog "$logtime:  Lag: ".$heap->{connector}->lag()."\n" if $debug==1;
-     $kernel->delay( 'lag_o_meter' => 60 );
      return;
 }
 
@@ -1182,7 +1176,6 @@ sub irc_botcmd_server {
 sub irc_botcmd_zkb {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $charname) = @_[ARG1, ARG2];
-     &onlinecheck($nick);
      if (not defined $charname) {
           $irc->yield(privmsg => $where, "/me - Query must be in the form of a single character name. (e.g. !zkb Ira Warwick)");
           return;
@@ -1306,7 +1299,7 @@ sub CharIDLookup {
 sub ZkbLookup {
      my $return = &CheckzkbCache($_[1],$_[0],$_[2]);
      if ($return == 1) {
-          print "Found record in killcache for $_[0]\n";
+          print $clog "Found record in killcache for $_[0]\n";
           return;
      } else {
           print "zkillboard lookup: From channel: $_[2] For Character: $_[0] CharID: $_[1]\n" if $debug == 1;
@@ -1316,7 +1309,8 @@ sub ZkbLookup {
           $browser->agent('Evepriceinfo/Chatbot');
           $browser->from('rjreed67@gmail.com');
           my $content = $browser->get($url,'Accept-Encoding' => $can_accept,);
-          if (not defined $content) {
+          print $content if $debug == 1;
+          if ($content->decoded_content =~ m/html/i) {
                $irc->yield(privmsg => $_[2], "$_[0] was not found at zKillboard.com.");
                return;
           }
