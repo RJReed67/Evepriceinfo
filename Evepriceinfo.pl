@@ -12,7 +12,7 @@ use POE::Component::IRC::Plugin::Logger;
 use DBI;
 use Locale::Currency::Format;
 use XML::LibXML;
-use LWP::Simple;
+use LWP::Simple qw(!head);
 use LWP::UserAgent;
 use JSON;
 use Time::HiRes qw(time);
@@ -27,6 +27,14 @@ use AnyEvent::Twitter::Stream;
 use Net::Twitter::Lite::WithAPIv1_1;
 use Scalar::Util 'blessed';
 use FileHandle;
+use POE::Component::Server::HTTP;
+use HTTP::Status;
+use CGI qw(:standard);
+
+use constant {
+     true	=> 1,
+     false	=> 0,
+};
  
 currency_set('USD','#,###.## ISK',FMT_COMMON);
 
@@ -121,7 +129,7 @@ open($elog, ">>","$error_log");
 $stdout = *STDOUT;
 $stderr = *STDERR;
 *STDERR = $elog;
-#*STDOUT = $clog if $debug == 1;
+*STDOUT = $clog if $debug == 1;
  
 my @cmds = ();
 my %help = ();
@@ -152,6 +160,59 @@ $sth = $dbh->prepare('TRUNCATE killcache');
 $sth->execute;
 $sth->finish;
 
+my $httpd = POE::Component::Server::HTTP->new(
+     Port => 8000,
+     ContentHandler => {
+          '/'      => \&handler,
+     },
+     Headers => { Server => 'EvePriceInfo' },
+);
+
+sub handler {
+     my ($kernel, $heap) = @_[KERNEL ,HEAP];
+     my ($request, $response) = @_;
+     $response->code(RC_OK);
+     my $q;
+     if ($request->method() eq 'POST') {
+          $q = new CGI($request->content);
+     } else {
+          $request->uri() =~ /\?(.+$)/;
+          if (defined($1)) {
+               $q = new CGI($1);
+          } else {
+               $q = new CGI;
+          }
+     }
+     my $content = start_html("EvePriceInfo Command");
+     if ($request->method() eq 'POST') {
+          for ($q->param("cmd")) {
+               if (/^!token /) { $content .= "token".br() }
+               if (/^!plex /) { $content .= "plex".br() }
+               if (/^!pc /) { $content .= "pc".br() }
+               if (/^!pca /) { $content .= "pca".br() }
+               if (/^!hpc /) { $content .= "hpc".br() }
+               if (/^!rpc /) { $content .= "rpc".br() }
+               if (/^!ice /) { $content .= "ice".br() }
+               if (/^!news/) { $content .= "news".br() }
+               if (/^!yield /) { $content .= "yield".br() }
+               if (/^!zkb /) { $content .= "zkb".br() }
+          }
+     }
+     $content .= start_form(
+     -method  => "post",
+     -action  => "/",
+     -enctype => "applications/x-www-form-urlencoded",
+     )
+     . "EvePriceInfo Cmd: "
+     . textfield("cmd")
+     . br()
+     . submit("submit", "submit")
+     . end_form()
+     . end_html();
+     $response->content($content);
+     return RC_OK;
+}
+
 my $nt = Net::Twitter::Lite::WithAPIv1_1->new(
      consumer_key    => $consumer_key,
      consumer_secret => $consumer_secret,
@@ -160,7 +221,7 @@ my $nt = Net::Twitter::Lite::WithAPIv1_1->new(
      ssl             => 1,
 );
 
-POE::Kernel->run(); # silence the warning
+#POE::Kernel->run(); # silence the warning
 
 my $irc = POE::Component::IRC::State->spawn(
         Nick   => $twitch_user,
@@ -580,7 +641,7 @@ sub irc_botcmd_wg500 {
      $arg =~ s/\s+$//;
      if ($irc->is_channel_operator($where,$nick)) {
           if ($arg) {
-               $irc->yield(privmsg => $where, "/me - All isk from loot/salvage/ore gathered during the week, will be added to the weekly drawing. 500 Token req to be entered automatically. You do no need to be present to win. Drawing is done on Sunday of each week.");
+               $irc->yield(privmsg => $where, "/me - All isk from loot/salvage/ore gathered during the week, will be added to the weekly drawing. 500 Token req to be entered automatically. You do not need to be present to win. Drawing is done on Sunday of each week.");
           } else {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE Tokens > 499 ORDER BY RAND() LIMIT 1');
                $sth->execute();
@@ -672,15 +733,15 @@ sub irc_botcmd_token {
                $sth->execute($arg);
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me - User $arg not found in token table.");
+                    $kernel->yield('say',($where, "User $arg not found in token table."));
                } else {
-                    $irc->yield(privmsg => $where, "/me - $arg has $ref->{'Tokens'} tokens.");
+                    $kernel->yield('say',($where, "$arg has $ref->{'Tokens'} tokens."));
                }
           } else {
                if (&tw_stream_online) {
-                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter. Check your token balance AFTER the cast with the !token command");
+                    $kernel->yield('say',($where, "Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter. Check your token balance AFTER the cast with the !token command"));
                } else {
-                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter.");
+                    $kernel->yield('say',($where, "Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter."));
                }
           }
      } else {
@@ -689,24 +750,24 @@ sub irc_botcmd_token {
                $sth->execute($nick);
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me - User $nick not found in token table.");
+                    $kernel->yield('say',($where, "User $nick not found in token table."));
                } else {
-                    $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
+                    $kernel->yield('say',($where,"$nick has $ref->{'Tokens'} tokens."));
                }
           } elsif ( &tw_is_subscriber($nick) ) {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
                $sth->execute($nick);
                my $ref = $sth->fetchrow_hashref();
                if (!$ref) {
-                    $irc->yield(privmsg => $where, "/me - User $nick not found in token table.");
+                    $kernel->yield('say',($where, "User $nick not found in token table."));
                } else {
-                    $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
+                    $kernel->yield('say',($where, "$nick has $ref->{'Tokens'} tokens."));
                }
           } elsif (!&tw_is_subscriber($nick)) {
                my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
                $sth->execute("sub");
                my $ref = $sth->fetchrow_hashref();
-               $irc->yield(privmsg => $where, "/me - ".$ref->{'DisplayInfo'});
+               $kernel->yield('say',($where, "$ref->{'DisplayInfo'}"));
           }
      }
      $sth->finish;
@@ -763,8 +824,8 @@ sub irc_botcmd_give {
           my $sectimer = $mins * 60;
           $_[ARG2]="open $threshold $title";
           $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => $sectimer - 60, $_[ARG0],$_[ARG1],"/me - Only 1 more minute until the giveaway for $title is closed. Get your !enter cmds in now!");
-          $kernel->delay_set(say => $sectimer - 10, $_[ARG0],$_[ARG1],"/me - Only 10 more seconds until the giveaway for $title is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => $sectimer - 60, $_[ARG1],"Only 1 more minute until the giveaway for $title is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => $sectimer - 10, $_[ARG1],"Only 10 more seconds until the giveaway for $title is closed. Get your !enter cmds in now!");
           $_[ARG2]="close";
           $kernel->delay_set(irc_botcmd_give => $sectimer, $_[ARG0],$_[ARG1],$_[ARG2] );
           $_[ARG2]="draw";
@@ -826,8 +887,8 @@ sub irc_botcmd_tgw {
      $giveaway_autogive = 1;
      $_[ARG2]="open 1 $token_give Tokens";
      $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
-     $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me - Only 1 more minute until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
-     $kernel->delay_set(say => 170, $_[ARG0],$_[ARG1],"/me - Only 10 more seconds until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
+     $kernel->delay_set(say => 120, $_[ARG1],"Only 1 more minute until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
+     $kernel->delay_set(say => 170, $_[ARG1],"Only 10 more seconds until the giveaway for $token_give Tokens is closed. Get your !enter cmds in now!");
      $_[ARG2]="close";
      $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
      $_[ARG2]="draw";
@@ -855,13 +916,13 @@ sub irc_botcmd_t1sgw {
           my %ship=("f","Frigate","d","Destroyer","c","Cruiser","bc","Battle Cruiser","bs","Battleship");
           $_[ARG2]="open 1 Tech 1 $ship{$shiptype} giveaway of winner's choice, sponsored by $contact";
           $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => 120, $_[ARG0],$_[ARG1],"/me - One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
-          $kernel->delay_set(say => 170, $_[ARG0],$_[ARG1],"/me - Ten seconds left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => 120, $_[ARG1],"/me - One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => 170, $_[ARG1],"/me - Ten seconds left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
           $_[ARG2]="close";
           $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
           $_[ARG2]="draw";
           $kernel->delay_set(irc_botcmd_give => 190, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => 195, $_[ARG0],$_[ARG1],"/me - Please contact $contact for your prize.");
+          $kernel->delay_set(say => 195, $_[ARG1],"/me - Please contact $contact for your prize.");
      } else {
           $irc->yield(privmsg => $where, "/me - Cmd must contain f,d,c,bc,bs for ship type.");
      }
@@ -903,7 +964,9 @@ sub irc_botcmd_botstats {
 }
 
 sub say {
-     $irc->yield(privmsg => $_[ARG1], $_[ARG2]);
+     my ($where, $msg) = @_[ARG0, ARG1];
+     $msg = "/me - ".$msg;
+     $irc->yield(privmsg => $where, $msg);
      return;
 }
 
@@ -972,10 +1035,10 @@ sub irc_botcmd_setnews {
 sub irc_botcmd_yield {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
-     $arg =~ s/\s+$//;
      if (!$arg) {
           return -1;
      }
+     $arg =~ s/\s+$//;
      my @mins=("Tritanium","Pyerite","Mexallon","Isogen","Nocxium","Zydrine","Megacyte","Morphite");
      my $sth = $dbh->prepare('SELECT * FROM refineInfo WHERE refineItem LIKE ?');
      $sth->execute($arg);
