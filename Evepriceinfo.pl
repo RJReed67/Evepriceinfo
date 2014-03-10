@@ -979,6 +979,10 @@ sub irc_botcmd_multitw {
           return;
      }
      my @watch = split(' ',$arg);
+     my %seen;
+     for ( my $i = 0; $i <= $#watch ; ) {
+          splice @watch, --$i, 1 if $seen{$watch[$i++]}++;
+     }
      my $num_channels = scalar(@watch);
      if ($num_channels < 2) {
           $irc->yield(privmsg => $where, "/me - Must use more than one channel name.");
