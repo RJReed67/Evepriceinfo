@@ -963,6 +963,26 @@ sub irc_botcmd_botstats {
      $irc->yield(privmsg => $where, "/me - Total usernames in DB: $total_users, Current users in chat: $total_online.");
 }
 
+sub irc_botcmd_multitw {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     if (!$irc->is_channel_operator($where,$nick)) {
+          return;
+     }
+     my @watch = split(' ',$arg);
+     my $num_channels = scalar(@watch);
+     if ($num_channels < 2) {
+          $irc->yield(privmsg => $where, "/me - Must use more than one channel name.");
+          return;
+     }
+     my $content = "/me - http://multitwitch.tv";
+     foreach (@watch) {
+          $content .= "/$_";
+     }
+     $irc->yield(privmsg => $where, $content);
+     return;
+}
+
 sub say {
      my ($where, $msg) = @_[ARG0, ARG1];
      $msg = "/me - ".$msg;
