@@ -536,6 +536,15 @@ sub irc_part {
      $sth->execute($nick);
 }
 
+sub irc_public {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $msg = $_[ARG2];
+     if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
+          my $subuser = split(' ',$msg,1);
+          $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser. Welcome to the channel.") for @channels;
+     }
+}
+
 sub irc_352 {
      my $user = (split / /,$_[ARG1])[1];
      my $sth = $dbh->prepare('SELECT * FROM rushlock_online_viewers WHERE TwitchID LIKE ?');
@@ -894,7 +903,7 @@ sub irc_botcmd_tgw {
      $_[ARG2]="draw";
      $kernel->delay_set(irc_botcmd_give => 190, $_[ARG0],$_[ARG1],$_[ARG2] );
      $_[ARG2]="$token_give evepriceinfo";
-     $kernel->delay_set(irc_botcmd_add => 220, $_[ARG0],$_[ARG1],$_[ARG2] );
+     $kernel->delay_set(irc_botcmd_add => 250, $_[ARG0],$_[ARG1],$_[ARG2] );
      return;
 }
 
