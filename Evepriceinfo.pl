@@ -540,8 +540,8 @@ sub irc_public {
      my $nick = (split /!/, $_[ARG0])[0];
      my $msg = $_[ARG2];
      if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
-          my $subuser = split(' ',$msg,1);
-          $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser. Welcome to the channel.") for @channels;
+          my @subuser = split(' ',$msg);
+          $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
      }
 }
 
