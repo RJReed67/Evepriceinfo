@@ -1130,7 +1130,7 @@ sub irc_botcmd_plex {
      $arg =~ s/\s+$//;
      &onlinecheck($nick);
      if (not defined $arg) {
-          $irc->yield(privmsg => $where, "/me - Query must have in a SystemName or the word Hub. (e.g. !plex Hub)");
+          $irc->yield(privmsg => $where, "/me - Query must have in a SystemName, Region RegionName, or Hub. (e.g. !plex Hub)");
           return;
      }
      if ($arg eq "?") {
@@ -1145,6 +1145,22 @@ sub irc_botcmd_plex {
                $price = $price.$sysname.":".currency_format('USD', &GetXMLValue($sysid,29668,"//sell/min"), FMT_COMMON)." ";
           }
           $irc->yield(privmsg => $where, "/me - Market Hub Prices for PLEX - $price");
+     } elsif ($arg =~ /region/) {
+          my ($cmd, $regname) = split(' ', $arg, 2);
+          $regname =~ s/\s+$//;
+          if (not defined $regname) {
+               $irc->yield(privmsg => $where, "/me - Query must be in the form of Region RegionName. (e.g. !plex Region Lonetrek)");
+               return;
+          }
+          my $regid = &RegionLookup($regname,$where);
+          return if ($regid == -1);
+          my $maxprice = &GetXMLValueReg($regid,29668,"//sell/min");
+          if ($maxprice != 0) {
+               $maxprice = currency_format('USD', $maxprice, FMT_COMMON);
+               $irc->yield(privmsg => $where, "/me - PLEX is selling for $maxprice in $regname region.");
+          } else {
+               $irc->yield(privmsg => $where, "/me - There is no PLEX for sell in $regname region.");
+          }
      } else {
      my $sysid = &SystemLookup($arg,$where);
      if ($sysid == -1) {
@@ -1265,7 +1281,7 @@ sub irc_botcmd_server {
      my $time = $doc->findvalue($xpath);
      $xpath="//result/serverOpen/text()";
      my $online = $doc->findnodes($xpath);
-     if ($online =~ /True/) {
+     if ($online =~ /true/) {
           $irc->yield(privmsg => $where, "/me - Server is Online with $value Players. Server Time: $time");
      } else {
           $irc->yield(privmsg => $where, "/me - Server is currently Offline. Server Time: $time");
@@ -1398,7 +1414,7 @@ sub CharIDLookup {
 # ZkbLookup: Args: 0 - Character Name, 1 - Character ID, 2 - IRC Channel to send the msg to.
 sub ZkbLookup {
      my $return = &CheckzkbCache($_[1],$_[0],$_[2]);
-     if ($return == 1) {
+     if ($return == true) {
           print $clog "Found record in killcache for $_[0]\n";
           return;
      } else {
