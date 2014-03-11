@@ -1421,6 +1421,7 @@ sub ZkbLookup {
           my $iskdest = $doc->findvalue($xpath);
           $xpath="//row[\@type='isk']/\@lost";
           my $isklost = $doc->findvalue($xpath);
+          my $eff = sprintf("%.1f",($shipdest/($shipdest+$shiplost))*100);
           my $msg = "/me - $_[0] has ";
           if ($shipdest == 0) {
                $msg = $msg."not destroyed any ships, ";
@@ -1437,6 +1438,7 @@ sub ZkbLookup {
           } else {
                $msg = $msg."lost $shiplost ships, worth ".currency_format('USD', $isklost, FMT_COMMON).".";
           }
+          $msg .= " Efficiency: $eff%";
           $irc->yield(privmsg => $_[2],$msg);
           my $dt = DateTime::Format::DateParse->parse_datetime($content->header('Expires'));
           my $sth = $dbh->prepare('INSERT INTO killcache SET CharID=?,CharName=?,DestShips=?,DestISK=?,LostShips=?,LostISK=?,DataExpire=?');
