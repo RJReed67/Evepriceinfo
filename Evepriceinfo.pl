@@ -542,6 +542,10 @@ sub irc_public {
      if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
           my @subuser = split(' ',$msg);
           $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
+          my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?');
+          my $subdate = Time::Piece->new->strftime('%Y-%m-%d');
+          $sth->execute($subuser[0],$subdate);
+          $sth->finish;
      }
 }
 
