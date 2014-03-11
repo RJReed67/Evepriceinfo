@@ -1455,11 +1455,12 @@ sub ZkbLookup {
 
 # CheckzkbCache - $Args 0 - CharacterID, 1 - Character Name, 2 - Channel to send msg to. - Returns a value of 1 if valid cache entry is found
 sub CheckzkbCache {
+     print "Called with: $_[0]:$_[1]:$_[2]\n" if $debug == 1;
      my $sth = $dbh->prepare('SELECT * FROM killcache WHERE CharID LIKE ?');
      $sth->execute($_[0]);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
-          return -1;
+          return false;
      } else {
           my $dt1 = DateTime->now(time_zone => "GMT");
           my $dt2 = DateTime::Format::MySQL->parse_datetime($ref->{'DataExpire'});
@@ -1469,7 +1470,7 @@ sub CheckzkbCache {
                $sth = $dbh->prepare('DELETE FROM killcache WHERE CharID=?');
                $sth->execute($_[0]);
                $sth->finish;
-               return -1;
+               return false;
           } else {
                my $shipdest = $ref->{'DestShips'};
                my $iskdest = $ref->{'DestISK'};
@@ -1495,7 +1496,7 @@ sub CheckzkbCache {
                }
                $msg .= " Ship Efficiency: $eff% ISK Efficiency: $iskeff%";
                $irc->yield(privmsg => $_[2],$msg);
-               return 1;
+               return true;
           }
      }
 }
