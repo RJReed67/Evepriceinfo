@@ -1281,7 +1281,7 @@ sub irc_botcmd_server {
      my $time = $doc->findvalue($xpath);
      $xpath="//result/serverOpen/text()";
      my $online = $doc->findnodes($xpath);
-     if ($online =~ /true/) {
+     if ($online =~ /True/) {
           $irc->yield(privmsg => $where, "/me - Server is Online with $value Players. Server Time: $time");
      } else {
           $irc->yield(privmsg => $where, "/me - Server is currently Offline. Server Time: $time");
