@@ -71,6 +71,7 @@ my $tw_token = $ref->{'tw_token'}->{'value'};
 my $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
 my $log_chat = $ref->{'log_chat'}->{'value'};
 my $token_give = $ref->{'token_give'}->{'value'};
+my $saydelay = $ref->{'saydelay'}->{'value'};
 $sth->finish;
 
 my $token_log = $log_dir."/token-log.txt";
@@ -364,6 +365,7 @@ sub _start {
      $irc->plugin_add('Connector' => $heap->{connector} );
      $heap->{next_alarm_time} = int(time()) + $interval;
      $kernel->alarm(tick => $heap->{next_alarm_time});
+     $kernel->delay(say_stuff => $saydelay);
      $irc->plugin_add('Logger' => POE::Component::IRC::Plugin::Logger->new(
           Path     => $log_dir,
           DCC      => 0,
@@ -400,8 +402,14 @@ sub _default {
      return 0;
 }
 
+sub say_stuff {
+     my ($kernel,$heap) = @_[KERNEL,HEAP];
+     $kernel->delay(say_stuff => $saydelay);
+     $irc->yield(privmsg => $_, "!amazon") for @channels;
+}
+
 sub tick {
-     my($kernel,$heap) = @_[KERNEL,HEAP];
+     my ($kernel,$heap) = @_[KERNEL,HEAP];
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
      $heap->{next_alarm_time}=int(time())+$interval;
      $kernel->alarm(tick => $heap->{next_alarm_time});
@@ -1026,6 +1034,7 @@ sub irc_botcmd_reload {
      $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
      $log_chat = $ref->{'log_chat'}->{'value'};
      $token_give = $ref->{'token_give'}->{'value'};
+     $saydelay = $ref->{'saydelay'}->{'value'};
      $sth->finish;
      $irc->yield(privmsg => $where, "/me - Values Updated.");
      return;
