@@ -1,172 +1,181 @@
--- phpMyAdmin SQL Dump
--- version 3.5.8.1
--- http://www.phpmyadmin.net
+-- MySQL dump 10.13  Distrib 5.5.32, for Linux (x86_64)
 --
-
-SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
-SET time_zone = "+00:00";
-
+-- Host: localhost    Database: EvePriceInfo
+-- ------------------------------------------------------
+-- Server version	5.5.32-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
 /*!40101 SET NAMES utf8 */;
-
---
--- Database: `EvePriceInfo`
---
-CREATE DATABASE `EvePriceInfo` DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci;
-USE `EvePriceInfo`;
-
--- --------------------------------------------------------
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
 -- Table structure for table `Rushlock_TwitchSubs`
 --
 
 DROP TABLE IF EXISTS `Rushlock_TwitchSubs`;
-CREATE TABLE IF NOT EXISTS `Rushlock_TwitchSubs` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `Rushlock_TwitchSubs` (
   `SubKey` int(11) NOT NULL AUTO_INCREMENT,
   `TwitchName` varchar(50) NOT NULL,
   `SubEmail` varchar(50) NOT NULL,
   `SubDate` date NOT NULL,
   PRIMARY KEY (`SubKey`)
-) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=49 ;
-
---
--- Triggers `Rushlock_TwitchSubs`
---
-DROP TRIGGER IF EXISTS `NewSubGrant`;
-DELIMITER //
-CREATE TRIGGER `NewSubGrant` AFTER INSERT ON `Rushlock_TwitchSubs`
- FOR EACH ROW BEGIN
-
+) ENGINE=MyISAM AUTO_INCREMENT=132 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8 */ ;
+/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET collation_connection  = utf8_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = '' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `NewSubGrant` AFTER INSERT ON `Rushlock_TwitchSubs` FOR EACH ROW BEGIN
    SET @TwitchID = NEW.TwitchName;
-
    SELECT Tokens INTO @Tokens FROM followers WHERE TwitchID LIKE @TwitchID;
-
    SET @Tokens = @Tokens + 200;
-
    UPDATE followers SET Tokens = @Tokens WHERE TwitchID LIKE @TwitchID;
-
-END
-//
+END */;;
 DELIMITER ;
-
--- --------------------------------------------------------
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
 -- Table structure for table `Rushlock_WeeklyTokenCount`
 --
 
 DROP TABLE IF EXISTS `Rushlock_WeeklyTokenCount`;
-CREATE TABLE IF NOT EXISTS `Rushlock_WeeklyTokenCount` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `Rushlock_WeeklyTokenCount` (
   `TwitchID` varchar(50) NOT NULL,
   `Token` int(11) NOT NULL,
   PRIMARY KEY (`TwitchID`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `TwitterID2TwitchID`
 --
 
 DROP TABLE IF EXISTS `TwitterID2TwitchID`;
-CREATE TABLE IF NOT EXISTS `TwitterID2TwitchID` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `TwitterID2TwitchID` (
   `TwitchID` varchar(50) NOT NULL,
   `TwitterID` varchar(50) NOT NULL,
   `TTL` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `WeeklyGiveaway`
 --
 
 DROP TABLE IF EXISTS `WeeklyGiveaway`;
-CREATE TABLE IF NOT EXISTS `WeeklyGiveaway` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `WeeklyGiveaway` (
   `GiveID` int(11) NOT NULL,
   `TwitchID` varchar(50) NOT NULL,
   PRIMARY KEY (`GiveID`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `entrylist`
 --
 
 DROP TABLE IF EXISTS `entrylist`;
-CREATE TABLE IF NOT EXISTS `entrylist` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `entrylist` (
   `TwitchID` varchar(50) NOT NULL,
   UNIQUE KEY `TwitchID` (`TwitchID`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `epi_commands`
 --
 
 DROP TABLE IF EXISTS `epi_commands`;
-CREATE TABLE IF NOT EXISTS `epi_commands` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `epi_commands` (
   `CmdKey` int(11) NOT NULL AUTO_INCREMENT,
   `Command` varchar(30) NOT NULL,
   `HelpInfo` varchar(255) NOT NULL,
   `CmdType` enum('info','custom','internal') NOT NULL,
+  `Repeat` bit(1) NOT NULL DEFAULT b'0',
+  `CycleTime` int(11) NOT NULL DEFAULT '0',
+  `NumOfChatLines` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`CmdKey`)
-) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=89 ;
-
--- --------------------------------------------------------
+) ENGINE=MyISAM AUTO_INCREMENT=97 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `epi_configuration`
 --
 
 DROP TABLE IF EXISTS `epi_configuration`;
-CREATE TABLE IF NOT EXISTS `epi_configuration` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `epi_configuration` (
   `setting` varchar(50) NOT NULL,
   `value` varchar(125) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `epi_info_cmds`
 --
 
 DROP TABLE IF EXISTS `epi_info_cmds`;
-CREATE TABLE IF NOT EXISTS `epi_info_cmds` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `epi_info_cmds` (
   `CmdName` varchar(30) NOT NULL,
   `DisplayInfo` varchar(255) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `followers`
 --
 
 DROP TABLE IF EXISTS `followers`;
-CREATE TABLE IF NOT EXISTS `followers` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `followers` (
   `UserKey` bigint(20) NOT NULL AUTO_INCREMENT,
   `TwitchID` varchar(40) NOT NULL,
   `Tokens` int(11) NOT NULL,
   `TTL` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`UserKey`),
   KEY `TwitchID` (`TwitchID`)
-) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=13536 ;
-
--- --------------------------------------------------------
+) ENGINE=MyISAM AUTO_INCREMENT=16659 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `giveaway`
 --
 
 DROP TABLE IF EXISTS `giveaway`;
-CREATE TABLE IF NOT EXISTS `giveaway` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `giveaway` (
   `GiveKey` bigint(20) NOT NULL AUTO_INCREMENT,
   `GiveTitle` varchar(255) NOT NULL,
   `Threshold` int(11) NOT NULL,
@@ -175,16 +184,17 @@ CREATE TABLE IF NOT EXISTS `giveaway` (
   `EndDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `Winner` varchar(50) NOT NULL,
   PRIMARY KEY (`GiveKey`)
-) ENGINE=MyISAM  DEFAULT CHARSET=latin1 AUTO_INCREMENT=67 ;
-
--- --------------------------------------------------------
+) ENGINE=MyISAM AUTO_INCREMENT=289 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `icerefine`
 --
 
 DROP TABLE IF EXISTS `icerefine`;
-CREATE TABLE IF NOT EXISTS `icerefine` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `icerefine` (
   `IceType` varchar(30) NOT NULL,
   `RefineSize` int(11) NOT NULL,
   `Heavy Water` int(11) NOT NULL,
@@ -195,40 +205,42 @@ CREATE TABLE IF NOT EXISTS `icerefine` (
   `Liquid Ozone` int(11) NOT NULL,
   `Strontium Calthrates` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `invTypes`
 --
 
 DROP TABLE IF EXISTS `invTypes`;
-CREATE TABLE IF NOT EXISTS `invTypes` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `invTypes` (
   `typeID` int(11) NOT NULL,
   `groupID` int(11) DEFAULT NULL,
-  `typeName` varchar(100) DEFAULT NULL,
-  `description` varchar(3000) DEFAULT NULL,
+  `typeName` varchar(200) DEFAULT NULL,
+  `description` varchar(6000) DEFAULT NULL,
   `mass` double DEFAULT NULL,
   `volume` double DEFAULT NULL,
   `capacity` double DEFAULT NULL,
   `portionSize` int(11) DEFAULT NULL,
-  `raceID` int(11) DEFAULT NULL,
+  `raceID` tinyint(3) unsigned DEFAULT NULL,
   `basePrice` decimal(19,4) DEFAULT NULL,
-  `published` int(11) DEFAULT NULL,
+  `published` tinyint(1) DEFAULT NULL,
   `marketGroupID` int(11) DEFAULT NULL,
   `chanceOfDuplicating` double DEFAULT NULL,
   PRIMARY KEY (`typeID`),
   KEY `invTypes_IX_Group` (`groupID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `killcache`
 --
 
 DROP TABLE IF EXISTS `killcache`;
-CREATE TABLE IF NOT EXISTS `killcache` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `killcache` (
   `CharID` int(11) NOT NULL,
   `CharName` varchar(50) NOT NULL,
   `DestShips` int(11) NOT NULL,
@@ -239,15 +251,16 @@ CREATE TABLE IF NOT EXISTS `killcache` (
   PRIMARY KEY (`CharID`),
   UNIQUE KEY `CharID` (`CharID`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `refineInfo`
 --
 
 DROP TABLE IF EXISTS `refineInfo`;
-CREATE TABLE IF NOT EXISTS `refineInfo` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `refineInfo` (
   `refineItem` varchar(50) NOT NULL,
   `batchsize` int(11) NOT NULL,
   `Tritanium` int(11) NOT NULL,
@@ -259,42 +272,45 @@ CREATE TABLE IF NOT EXISTS `refineInfo` (
   `Megacyte` int(11) NOT NULL,
   `Morphite` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `regionids`
 --
 
 DROP TABLE IF EXISTS `regionids`;
-CREATE TABLE IF NOT EXISTS `regionids` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `regionids` (
   `RegionID` int(11) NOT NULL,
   `RegionName` varchar(50) NOT NULL,
   PRIMARY KEY (`RegionID`),
   KEY `RegionID` (`RegionID`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `rushlock_online_viewers`
 --
 
 DROP TABLE IF EXISTS `rushlock_online_viewers`;
-CREATE TABLE IF NOT EXISTS `rushlock_online_viewers` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `rushlock_online_viewers` (
   `TwitchID` varchar(50) NOT NULL,
   UNIQUE KEY `TwitchID` (`TwitchID`),
   KEY `TwitchID_2` (`TwitchID`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
--- --------------------------------------------------------
+/*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Table structure for table `systemids`
 --
 
 DROP TABLE IF EXISTS `systemids`;
-CREATE TABLE IF NOT EXISTS `systemids` (
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `systemids` (
   `SystemID` int(11) NOT NULL,
   `SystemName` varchar(50) NOT NULL,
   `RegionID` int(11) NOT NULL,
@@ -305,21 +321,15 @@ CREATE TABLE IF NOT EXISTS `systemids` (
   PRIMARY KEY (`SystemID`),
   KEY `SystemID` (`SystemID`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
--- --------------------------------------------------------
-
-DELIMITER $$
---
--- Events
---
-DROP EVENT `WeeklyTokenCleanUp`$$
-CREATE DEFINER=`root`@`localhost` EVENT `WeeklyTokenCleanUp` ON SCHEDULE EVERY 1 WEEK STARTS '2013-11-30 00:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'Cleans the table out each week' DO TRUNCATE Rushlock_WeeklyTokenCount$$
-
-DROP EVENT `DeleteOldUsers`$$
-CREATE DEFINER=`root`@`localhost` EVENT `DeleteOldUsers` ON SCHEDULE EVERY 1 DAY STARTS '2014-01-08 00:00:01' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'Daily delete of followers table that are over 90 days offline' DO DELETE FROM `followers` WHERE DATEDIFF( NOW(), `TTL`) > 90$$
-
-DELIMITER ;
-
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2014-03-13 10:35:07
