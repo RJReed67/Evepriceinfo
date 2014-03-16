@@ -71,13 +71,13 @@ my $tw_token = $ref->{'tw_token'}->{'value'};
 my $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
 my $log_chat = $ref->{'log_chat'}->{'value'};
 my $token_give = $ref->{'token_give'}->{'value'};
-my $saydelay = $ref->{'saydelay'}->{'value'};
 $sth->finish;
 
 my $token_log = $log_dir."/token-log.txt";
 my $console_log = $log_dir."/console-log.txt";
 my $error_log = $log_dir."/error-log.txt";
 my $offline_timer = 0;
+my $chatlines = 0;
 
 my $giveaway_key = 0;
 my $giveaway_open = -1;
@@ -134,6 +134,7 @@ $stderr = *STDERR;
  
 my @cmds = ();
 my %help = ();
+my %rep = ();
 
 push(@cmds,'irc_botcmd_info');
 $sth = $dbh->prepare('SELECT * FROM epi_commands');
@@ -145,8 +146,15 @@ foreach ( keys %$ref ) {
      } elsif ($ref->{$_}->{'CmdType'} eq 'info') {
           my $key = $ref->{$_}->{'Command'};
           my $helptxt = $ref->{$_}->{'HelpInfo'};
+          my $repeat = $ref->{$_}->{'Repeat'};
+          my $cycletime = $ref->{$_}->{'CycleTime'};
+          my $lines = $ref->{$_}->{'NumOfChatLines'};
           $help{$key}{info}="$helptxt";
           $help{$key}{handler}="irc_botcmd_info";
+          $rep{$key}{repeat}="$repeat";
+          $rep{$key}{timer}="$cycletime";
+          $rep{$key}{lines}="$lines";
+          $rep{$key}{counter}=0;
      } else {
           push(@cmds,"irc_botcmd_".$ref->{$_}->{'Command'});
           $help{$ref->{$_}->{'Command'}}=$ref->{$_}->{'HelpInfo'};
@@ -365,7 +373,6 @@ sub _start {
      $irc->plugin_add('Connector' => $heap->{connector} );
      $heap->{next_alarm_time} = int(time()) + $interval;
      $kernel->alarm(tick => $heap->{next_alarm_time});
-     $kernel->delay(say_stuff => $saydelay);
      $irc->plugin_add('Logger' => POE::Component::IRC::Plugin::Logger->new(
           Path     => $log_dir,
           DCC      => 0,
@@ -381,6 +388,13 @@ sub _start {
      ));
      $irc->yield(register => qw(all));
      $irc->yield(connect => { } );
+     foreach ( keys %rep ) {
+          if ($rep{$_}{repeat} == 1) {
+               my $cmdname = $_;
+               my $cmdtimer = $rep{$_}{timer};
+               $kernel->delay(irc_botcmd_info => $cmdtimer,('evepriceinfo!evepriceinfo@evepriceinfo.twitch.tv','#rushlock',$cmdname));
+          }
+     }
      return;
 }
 
@@ -400,12 +414,6 @@ sub _default {
      my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
      print $clog $logtime.": ".join ' ', @output, "\n";
      return 0;
-}
-
-sub say_stuff {
-     my ($kernel,$heap) = @_[KERNEL,HEAP];
-     $kernel->delay(say_stuff => $saydelay);
-     $irc->yield(privmsg => $_, "!amazon") for @channels;
 }
 
 sub tick {
@@ -547,6 +555,12 @@ sub irc_part {
 sub irc_public {
      my $nick = (split /!/, $_[ARG0])[0];
      my $msg = $_[ARG2];
+     foreach ( keys %rep ) {
+          if ($rep{$_}{repeat} == true) {
+               $rep{$_}{count}++ if ($rep{$_}{repeat} == true);
+               print $clog "$_ counter: $rep{$_}{count} - $rep{$_}{repeat}\n" if $debug == true;
+          }
+     }
      if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
           my @subuser = split(' ',$msg);
           $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
@@ -610,13 +624,27 @@ sub irc_botcmd_addtweetid {
 }
 
 sub irc_botcmd_info {
+     my ($kernel, $heap) = @_[KERNEL ,HEAP];
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, 14];
      $arg =~ s/\s+$//;
+     if ($nick =~ m/evepriceinfo/) {
+          $arg = $_[ARG2];
+          print "Command $arg called by auto repeat.\n" if $debug == true;
+          print "$arg counter: $rep{$arg}{count}\n" if $debug == true;
+          if ($rep{$arg}{repeat} == true && $rep{$arg}{count} >= $rep{$arg}{lines}) {
+               $rep{$arg}{count} = 0;
+               $kernel->delay('irc_botcmd_info' => $rep{$arg}{timer}, $_[ARG0], $_[ARG1], $arg);
+          } else {
+               $kernel->delay('irc_botcmd_info' => $rep{$arg}{timer}, $_[ARG0], $_[ARG1], $arg);
+               return;
+          }
+     }
      my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
      $sth->execute($arg);
      my $ref = $sth->fetchrow_hashref();
      $irc->yield(privmsg => $where, "/me - ".$ref->{'DisplayInfo'});
+     $sth->finish;
      return;
 }
 
@@ -898,7 +926,7 @@ sub irc_botcmd_tgw {
      if (!$irc->is_channel_operator($where,$nick)) {
           return;
      }
-     if ($giveaway_open == 1) {
+     if ($giveaway_open == true) {
           $irc->yield(privmsg => $where, "/me - A giveaway is still open. Please close the giveaway before attempting to do a new one.");
           return;
      }
@@ -1034,7 +1062,6 @@ sub irc_botcmd_reload {
      $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
      $log_chat = $ref->{'log_chat'}->{'value'};
      $token_give = $ref->{'token_give'}->{'value'};
-     $saydelay = $ref->{'saydelay'}->{'value'};
      $sth->finish;
      $irc->yield(privmsg => $where, "/me - Values Updated.");
      return;
