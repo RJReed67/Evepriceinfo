@@ -28,7 +28,7 @@ CREATE TABLE `Rushlock_TwitchSubs` (
   `SubEmail` varchar(50) NOT NULL,
   `SubDate` date NOT NULL,
   PRIMARY KEY (`SubKey`)
-) ENGINE=MyISAM AUTO_INCREMENT=132 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=139 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -118,7 +118,7 @@ CREATE TABLE `epi_commands` (
   `Command` varchar(30) NOT NULL,
   `HelpInfo` varchar(255) NOT NULL,
   `CmdType` enum('info','custom','internal') NOT NULL,
-  `Repeat` bit(1) NOT NULL DEFAULT b'0',
+  `Repeat` tinyint(1) NOT NULL DEFAULT '0',
   `CycleTime` int(11) NOT NULL DEFAULT '0',
   `NumOfChatLines` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`CmdKey`)
@@ -147,7 +147,7 @@ DROP TABLE IF EXISTS `epi_info_cmds`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `epi_info_cmds` (
   `CmdName` varchar(30) NOT NULL,
-  `DisplayInfo` varchar(255) NOT NULL
+  `DisplayInfo` mediumtext NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -165,7 +165,7 @@ CREATE TABLE `followers` (
   `TTL` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`UserKey`),
   KEY `TwitchID` (`TwitchID`)
-) ENGINE=MyISAM AUTO_INCREMENT=16659 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=16960 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -184,7 +184,7 @@ CREATE TABLE `giveaway` (
   `EndDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `Winner` varchar(50) NOT NULL,
   PRIMARY KEY (`GiveKey`)
-) ENGINE=MyISAM AUTO_INCREMENT=289 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=314 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -332,4 +332,4 @@ CREATE TABLE `systemids` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-03-13 10:35:07
+-- Dump completed on 2014-03-15 22:46:08
