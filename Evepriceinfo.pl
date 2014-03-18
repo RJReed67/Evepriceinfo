@@ -63,6 +63,7 @@ my $install_dir = $ref->{'install_dir'}->{'value'};
 my $log_dir = $install_dir.$ref->{'log_dir'}->{'value'};
 my @channels = ($ref->{'channel'}->{'value'});
 my $log_token = $ref->{'log_token'}->{'value'};
+my $token_log = $log_dir.$ref->{'log_token'}->{'value'};
 my $bindport = $ref->{'console_bindport'}->{'value'};
 my $token_exclude = $ref->{'token_exclude'}->{'value'};
 my $consumer_key = $ref->{'tw_consumer_key'}->{'value'};
@@ -73,7 +74,6 @@ my $log_chat = $ref->{'log_chat'}->{'value'};
 my $token_give = $ref->{'token_give'}->{'value'};
 $sth->finish;
 
-my $token_log = $log_dir."/token-log.txt";
 my $console_log = $log_dir."/console-log.txt";
 my $error_log = $log_dir."/error-log.txt";
 my $offline_timer = 0;
@@ -529,17 +529,28 @@ sub irc_join {
           $sth->execute($nick);
      } else {
           print "$nick in followers table.\n" if $debug==1;
-          $sth = $dbh->prepare('UPDATE followers SET TTL = NULL WHERE TwitchID like ?');
-          $sth->execute($nick);
-          $sth->finish;
-          $sth = $dbh->prepare('SELECT * FROM Rushlock_WeeklyTokenCount WHERE TwitchID LIKE ?');
-          $sth->execute($nick);
-          my $ref2 = $sth->fetchrow_hashref();
-          if (!$ref2) {
-               print $clog "$logtime: $nick not in weekly token count.\n" if $debug==1;
-               $sth->finish;
-               $sth = $dbh->prepare('INSERT INTO Rushlock_WeeklyTokenCount SET TwitchID = ?, Token = 0');
+          my $dt1 = DateTime::Format::MySQL->parse_datetime($ttl);
+          my $dt2 = DateTime->now(time_zone=>'local');
+          my $hours = ($dt2 - $dt1)->hours;
+          my $mins = ($dt2 - $dt1)->minutes;
+          my $secs = ($dt2 - $dt1)->seconds;
+          my $duration = ($hours * 3600) + ($mins * 60) + $secs;
+          if ($duration > 60) {
+               print "$nick was gone more than one minute.\n" if $debug==1;
+               $sth = $dbh->prepare('UPDATE followers SET TTL = NULL WHERE TwitchID like ?');
                $sth->execute($nick);
+               $sth->finish;
+               $sth = $dbh->prepare('SELECT * FROM Rushlock_WeeklyTokenCount WHERE TwitchID LIKE ?');
+               $sth->execute($nick);
+               my $ref2 = $sth->fetchrow_hashref();
+               if (!$ref2) {
+                    print $clog "$logtime: $nick not in weekly token count.\n" if $debug==1;
+                    $sth->finish;
+                    $sth = $dbh->prepare('INSERT INTO Rushlock_WeeklyTokenCount SET TwitchID = ?, Token = 0');
+                    $sth->execute($nick);
+               }
+          } else {
+               print "$nick was gone less than one minute.\n" if $debug==1;
           }
      }
 }
