@@ -63,7 +63,7 @@ my $install_dir = $ref->{'install_dir'}->{'value'};
 my $log_dir = $install_dir.$ref->{'log_dir'}->{'value'};
 my @channels = ($ref->{'channel'}->{'value'});
 my $log_token = $ref->{'log_token'}->{'value'};
-my $token_log = $log_dir.$ref->{'log_token'}->{'value'};
+my $token_log = $log_dir.$ref->{'token_filename'}->{'value'};
 my $bindport = $ref->{'console_bindport'}->{'value'};
 my $token_exclude = $ref->{'token_exclude'}->{'value'};
 my $consumer_key = $ref->{'tw_consumer_key'}->{'value'};
@@ -529,12 +529,13 @@ sub irc_join {
           $sth->execute($nick);
      } else {
           print "$nick in followers table.\n" if $debug==1;
-          my $dt1 = DateTime::Format::MySQL->parse_datetime($ttl);
+          my $dt1 = DateTime::Format::MySQL->parse_datetime($ref->{'TTL'});
           my $dt2 = DateTime->now(time_zone=>'local');
           my $hours = ($dt2 - $dt1)->hours;
           my $mins = ($dt2 - $dt1)->minutes;
           my $secs = ($dt2 - $dt1)->seconds;
           my $duration = ($hours * 3600) + ($mins * 60) + $secs;
+          print "$nick was last seen $ref->{'TTL'}.\n" if $debug==1;
           if ($duration > 60) {
                print "$nick was gone more than one minute.\n" if $debug==1;
                $sth = $dbh->prepare('UPDATE followers SET TTL = NULL WHERE TwitchID like ?');
