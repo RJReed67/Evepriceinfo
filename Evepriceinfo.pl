@@ -639,7 +639,6 @@ sub irc_botcmd_info {
      my ($kernel, $heap) = @_[KERNEL ,HEAP];
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, 14];
-     $arg =~ s/\s+$//;
      if ($nick =~ m/evepriceinfo/) {
           $arg = $_[ARG2];
           print "Command $arg called by auto repeat.\n" if $debug == true;
@@ -652,6 +651,7 @@ sub irc_botcmd_info {
                return;
           }
      }
+     $arg =~ s/\s+$//;
      my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
      $sth->execute($arg);
      my $ref = $sth->fetchrow_hashref();
@@ -977,13 +977,13 @@ sub irc_botcmd_t1sgw {
           my %ship=("f","Frigate","d","Destroyer","c","Cruiser","bc","Battle Cruiser","bs","Battleship");
           $_[ARG2]="open 1 Tech 1 $ship{$shiptype} giveaway of winner's choice, sponsored by $contact";
           $kernel->delay_set(irc_botcmd_give => 1, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => 120, $_[ARG1],"/me - One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
-          $kernel->delay_set(say => 170, $_[ARG1],"/me - Ten seconds left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => 120, $_[ARG1],"One minute left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
+          $kernel->delay_set(say => 170, $_[ARG1],"Ten seconds left until the giveaway for a Tech 1 $ship{$shiptype} of the winner's choice is closed. Get your !enter cmds in now!");
           $_[ARG2]="close";
           $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
           $_[ARG2]="draw";
           $kernel->delay_set(irc_botcmd_give => 190, $_[ARG0],$_[ARG1],$_[ARG2] );
-          $kernel->delay_set(say => 195, $_[ARG1],"/me - Please contact $contact for your prize.");
+          $kernel->delay_set(say => 195, $_[ARG1],"Please contact $contact for your prize.");
      } else {
           $irc->yield(privmsg => $where, "/me - Cmd must contain f,d,c,bc,bs for ship type.");
      }
