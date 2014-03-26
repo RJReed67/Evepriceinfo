@@ -72,12 +72,15 @@ my $tw_token = $ref->{'tw_token'}->{'value'};
 my $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
 my $log_chat = $ref->{'log_chat'}->{'value'};
 my $token_give = $ref->{'token_give'}->{'value'};
+my $auto_grant = $ref->{'auto_grant'}->{'value'};
 $sth->finish;
 
 my $console_log = $log_dir."/console-log.txt";
 my $error_log = $log_dir."/error-log.txt";
 my $offline_timer = 0;
 my $chatlines = 0;
+my $online_timer = 0;
+my $grant_id;
 
 my $giveaway_key = 0;
 my $giveaway_open = -1;
@@ -260,6 +263,8 @@ my $listener = AnyEvent::Twitter::Stream->new(
     on_tweet        => sub { 
        my $tweet = shift;
        if ($tweet->{text}) {
+          my $text = $tweet->{text};
+          $text =~ s/[^\x00-\x7f]//g;
           $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet->{text}") for @channels;
        }
     },
@@ -423,10 +428,17 @@ sub tick {
      $kernel->alarm(tick => $heap->{next_alarm_time});
      print $clog $logtime." timer!\n" if $debug==1;
      if (&tw_stream_online) {
+          print $clog $logtime." Online Tick: $online_timer\n" if $debug==1;
           $offline_timer = 0;
+          &auto_grant if $auto_grant;
           &token_time("\#rushlock");
      } else {
           $offline_timer = $offline_timer + 1;
+          if ($grant_id) {
+               $online_timer = 0;
+               $kernel->alarm_remove( $grant_id ) if $auto_grant;
+               $grant_id = undef;
+          }
           print $clog "Offline Tick: $offline_timer\n" if $debug==1;
           if ($offline_timer > 3) {
                print $tlog "$logtime: Offline token grant start.\n" if $log_token==1;
@@ -955,7 +967,7 @@ sub irc_botcmd_tgw {
      $_[ARG2]="draw";
      $kernel->delay_set(irc_botcmd_give => 190, $_[ARG0],$_[ARG1],$_[ARG2] );
      $_[ARG2]="$token_give evepriceinfo";
-     $kernel->delay_set(irc_botcmd_add => 250, $_[ARG0],$_[ARG1],$_[ARG2] );
+     $kernel->delay_set(irc_botcmd_add => 220, $_[ARG0],$_[ARG1],$_[ARG2] );
      return;
 }
 
@@ -1074,6 +1086,7 @@ sub irc_botcmd_reload {
      $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
      $log_chat = $ref->{'log_chat'}->{'value'};
      $token_give = $ref->{'token_give'}->{'value'};
+     $auto_grant = $ref->{'auto_grant'}->{'value'};
      $sth->finish;
      $irc->yield(privmsg => $where, "/me - Values Updated.");
      return;
@@ -1565,16 +1578,28 @@ sub CheckzkbCache {
      }
 }
 
+sub auto_grant {
+     my ($kernel, $self) = @_[KERNEL, OBJECT];
+     print "Auto Grant Called: $online_timer.\n" if $debug == 1;
+     if ($online_timer < 1) {
+          $grant_id = $kernel->delay_set(irc_botcmd_tgw => 1800, 'evepriceinfo!evepriceinfo@evepriceinfo.twitch.tv','#rushlock','');
+          print $elog "Auto Grant Error: $!\n" if $debug == 1;
+          $online_timer = $online_timer + 1;
+     } else {
+          $online_timer = 0;
+     }
+}
+
 sub tw_stream_online {
      my $ua = LWP::UserAgent->new;
      my $live = $ua->get($tw_following,"Accept"=>"application/vnd.twitchtv.v2+json","Authorization"=>"$tw_pwd");
      my $code = $live->code();
-     if ($code =~ /^5/) { return 0; }
+     if ($code =~ /^5/) { return false; }
      my $decode = decode_json( $live->content );
      my @streams = @{$decode->{'streams'}};
      my $id = $streams[0]->{'_id'};
-     return 1 if $id;
-     return 0;
+     return true if ($id);
+     return false;
 }
 
 sub tw_user_follow {
