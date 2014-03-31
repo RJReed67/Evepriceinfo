@@ -1362,7 +1362,23 @@ sub irc_botcmd_zkb {
           $irc->yield(privmsg => $where, "/me - There is no $charname in the Eve Universe.");
           return;
      };
-     &ZkbLookup($charname,$charid,$where);
+     &ZkbLookup($charname,$charid,$where,0);
+     return;
+}
+
+sub irc_botcmd_zckb {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $corpname) = @_[ARG1, ARG2];
+     if (not defined $corpname) {
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of a single corporation name. (e.g. !zkb The Romantics)");
+          return;
+     }
+     my $corpid = &CharIDLookup($corpname);
+     if ($corpid == -1) {
+          $irc->yield(privmsg => $where, "/me - There is not a corporation named $corpname in the Eve Universe.");
+          return;
+     };
+     &ZkbLookup($corpname,$corpid,$where,1);
      return;
 }
 
@@ -1472,15 +1488,20 @@ sub CharIDLookup {
      }
 }
 
-# ZkbLookup: Args: 0 - Character Name, 1 - Character ID, 2 - IRC Channel to send the msg to.
+# ZkbLookup: Args: 0 - Character Name, 1 - Character ID, 2 - IRC Channel to send the msg to, 3 - Corp=1,Char=0.
 sub ZkbLookup {
      my $return = &CheckzkbCache($_[1],$_[0],$_[2]);
      if ($return == true) {
           print $clog "Found record in killcache for $_[0]\n";
           return;
      } else {
-          print "zkillboard lookup: From channel: $_[2] For Character: $_[0] CharID: $_[1]\n" if $debug == 1;
-          my $url = "https://zkillboard.com/api/stats/characterID/$_[1]/xml/";
+          print "zkillboard lookup: From channel: $_[2] For: $_[0] CharID: $_[1]\n" if $debug == 1;
+          my $url = "";
+          if ($_[3] == 1) {
+               $url = "https://zkillboard.com/api/stats/corporationID/$_[1]/xml/";
+          } else {
+               $url = "https://zkillboard.com/api/stats/characterID/$_[1]/xml/";
+          }
           my $browser = LWP::UserAgent->new;
           my $can_accept = HTTP::Message::decodable;
           $browser->agent('Evepriceinfo/Chatbot');
