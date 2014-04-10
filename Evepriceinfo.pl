@@ -259,20 +259,15 @@ my $listener = AnyEvent::Twitter::Stream->new(
     token_secret    => $tw_token_secret,
     method          => "userstream",
     api_url         => "https://userstream.twitter.com/1.1/user.json",
-    timeout         => 300,
     on_tweet        => sub { 
        my $tweet = shift;
        if ($tweet->{text}) {
           my $text = $tweet->{text};
           $text =~ s/[^\x00-\x7f]//g;
-          $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet->{text}") for @channels;
+          $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet") for @channels;
        }
     },
-    on_error        => sub {
-       my $error = shift;
-       warn($error);
-       $done->send;
-    },
+    timeout         => 300,
 );
 
 my $listener2 = AnyEvent::Twitter::Stream->new(
@@ -322,11 +317,6 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
                 } 
            }
        }
-    },
-    on_error        => sub {
-       my $error = shift;
-       warn($error);
-       $done->send;
     },
 );
 
@@ -1034,6 +1024,11 @@ sub irc_botcmd_botstats {
      my ($total_online) = $sth->fetchrow_array;
      $sth->finish;
      $irc->yield(privmsg => $where, "/me - Total usernames in DB: $total_users, Current users in chat: $total_online.");
+     if (&tw_stream_online) {
+          $irc->yield(privmsg => $where, "/me - Stream is Online: $online_timer.");
+     } else {
+          $irc->yield(privmsg => $where, "/me - Stream is Offline.");
+     }
 }
 
 sub irc_botcmd_multitw {
@@ -1354,14 +1349,15 @@ sub irc_botcmd_zkb {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $charname) = @_[ARG1, ARG2];
      if (not defined $charname) {
-          $irc->yield(privmsg => $where, "/me - Query must be in the form of a single character name. (e.g. !zkb Ira Warwick)");
+          $irc->yield(privmsg => $where, "/me - Query must be in the form of a single character/corporation name. (e.g. !zkb Ira Warwick)");
           return;
      }
      my $charid = &CharIDLookup($charname);
-     if ($charid == -1) {
+     if ($charid == false) {
           $irc->yield(privmsg => $where, "/me - There is no $charname in the Eve Universe.");
           return;
      };
+#     my $iscorp = &CorpCheck($charid);
      &ZkbLookup($charname,$charid,$where,0);
      return;
 }
@@ -1420,7 +1416,8 @@ sub CorpLookup {
 sub GetXMLValue {
      my $url = "http://api.eve-central.com/api/marketstat?usesystem=$_[0]&typeid=$_[1]";
      my $parser = new XML::LibXML;
-     my $doc = $parser->parse_file("$url");
+     my $doc = eval { $parser->parse_file("$url") };
+     return 0 if $@;
      my $xpath="//sell/min";
      my $value = $doc->findvalue($_[2]);
      return $value;
@@ -1429,7 +1426,8 @@ sub GetXMLValue {
 sub GetXMLValueReg {
      my $url = "http://api.eve-central.com/api/marketstat?regionlimit=$_[0]&typeid=$_[1]";
      my $parser = new XML::LibXML;
-     my $doc = $parser->parse_file("$url");
+     my $doc = eval { $parser->parse_file("$url") };
+     return 0 if $@;
      my $xpath="//sell/min";
      my $value = $doc->findvalue($_[2]);
      return $value;
@@ -1482,9 +1480,25 @@ sub CharIDLookup {
      my $xpath="//result/rowset/row/\@characterID";
      my $value = $doc->findvalue($xpath);
      if ($value == 0) {
-          return -1;
+          return false;
      } else {
           return $value;
+     }
+}
+
+sub CorpCheck {
+     my $url = 'https://api.eveonline.com/eve/CharacterInfo.xml.aspx?&characterId='.$_[0];
+     my $content = get($url);
+     my $parser = new XML::LibXML;
+     my $doc = eval { $parser->parse_string($content) };
+     return true if $@;
+     my $xpath="//error";
+     my $iscorp = $doc->findvalue($xpath);
+     print "Is ID a corp? $iscorp\n" if $debug == 1;
+     if ($iscorp > 0) {
+          return true;
+     } else {
+          return false;
      }
 }
 
