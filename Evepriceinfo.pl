@@ -263,8 +263,8 @@ my $listener = AnyEvent::Twitter::Stream->new(
        my $tweet = shift;
        if ($tweet->{text}) {
           my $text = $tweet->{text};
-          $text =~ s/[^\x00-\x7f]//g;
-          $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet") for @channels;
+          $text->{text} =~ s/[^\x00-\x7f]//g;
+          $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet->{text}") for @channels;
        }
     },
     timeout         => 300,
