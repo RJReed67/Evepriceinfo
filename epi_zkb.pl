@@ -60,7 +60,7 @@ my %help = ();
 
 push(@cmds,'_start');
 push(@cmds,'irc_001');
-$sth = $dbh->prepare('SELECT * FROM epi_commands WHERE Command like ?');
+$sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
 $sth->execute('zkb');
 $ref = $sth->fetchall_hashref('CmdKey');
 foreach ( keys %$ref ) {
