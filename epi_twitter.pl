@@ -25,7 +25,7 @@ use Data::Dumper;
 use AnyEvent::Twitter::Stream;
 use Net::Twitter::Lite::WithAPIv1_1;
 use Scalar::Util 'blessed';
-use FileHandle;
+use Log::Log4perl;
 
 use constant {
      true	=> 1,
@@ -58,36 +58,17 @@ my $tw_follow = $ref->{'tw_follow'}->{'value'};
 my $tw_pwd = $ref->{'tw_pwd'}->{'value'};;
 my $interval = $ref->{'interval'}->{'value'};
 my $install_dir = $ref->{'install_dir'}->{'value'};
-my $log_dir = $install_dir.$ref->{'log_dir'}->{'value'};
-my $token_log = $log_dir.$ref->{'token_filename'}->{'value'};
 my @channels = ($ref->{'channel'}->{'value'});
 my $consumer_key = $ref->{'tw_consumer_key'}->{'value'};
 my $consumer_secret = $ref->{'tw_consumer_secret'}->{'value'};
 my $tw_token = $ref->{'tw_token'}->{'value'};
 my $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
+my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
 $sth->finish;
 
-my $console_log = $log_dir."/console-log.txt";
-my $error_log = $log_dir."/error-log.txt";
-
-my $tlog;
-my $clog;
-my $elog;
-my $stdout;
-my $stderr;
-if ($log_token == 1) {
-     $tlog = FileHandle->new(">> $token_log");
-     $tlog->autoflush(1);
-}
-if ($debug == 1) {
-     $clog = FileHandle->new("+> $console_log");
-     $clog->autoflush(1);
-}
-open($elog, ">>","$error_log");
-$stdout = *STDOUT;
-$stderr = *STDERR;
-*STDERR = $elog;
-*STDOUT = $clog if $debug == 1;
+Log::Log4perl::init_and_watch($log_conf,60);
+my $logger = Log::Log4perl->get_logger;
+my $tokenlogger = Log::Log4perl->get_logger("token");
  
 my $nt = Net::Twitter::Lite::WithAPIv1_1->new(
      consumer_key    => $consumer_key,
@@ -142,16 +123,15 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
     on_tweet        => sub { 
        my $tweet = shift;
        if ($tweet->{text}) {
-           my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
            my $sth = $dbh->prepare('SELECT a.TwitchID, a.Tokens, b.TTL FROM `followers` a LEFT JOIN `TwitterID2TwitchID` b ON a.TwitchID = b.TwitchID WHERE b.TwitterID IS NOT NULL AND b.TwitterID like ?');
            my $id = "\@".$tweet->{user}{screen_name};
-           print $clog "$logtime: Got a tweet from $id.\n" if $debug==1;
+           $logger->info("Got a tweet from $id.");
            $sth->execute($id) or die "Error: ".$sth->errstr;
            my $rows = $sth->rows;
            if ($rows > 0) {
                 my @row=$sth->fetchrow_array();
                 my ($twitchid,$tokens,$ttl) = @row;
-                print $clog "Twitter user: $id is $twitchid.\n" if $debug==1;
+                $logger->debug("Twitter user: $id is $twitchid.");
                 $sth->finish;
                 return if $twitchid =~ m/$token_exclude/i;
                 my $dt1 = DateTime::Format::MySQL->parse_datetime($ttl);
@@ -160,20 +140,15 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
                 my $hours = ($dt2 - $dt1)->hours;
                 my $duration = ($days * 24) + $hours;
                 if ($duration > 18) {
-                     print $tlog "$logtime: Giving 5 tokens to \"$twitchid\" for tweeting.\n" if $log_token==1;
+                     $tokenlogger->info("Giving 5 tokens to \"$twitchid\" for tweeting.");
                      $tokens = $tokens + 5;
                      $sth = $dbh->prepare('UPDATE followers SET Tokens = ? WHERE TwitchID like ?');
                      $sth->execute($tokens,$twitchid) or die "Error: ".$sth->errstr;
                      $sth->finish;
                      $sth = $dbh->prepare('UPDATE TwitterID2TwitchID SET TTL = NULL WHERE TwitchID like ?');
                      $sth->execute($twitchid) or die "Error: ".$sth->errstr;
-                     if ($debug==1) {
-                          $irc->yield(privmsg => $_, "5 Tokens given to $twitchid for tweet: $tweet->{text}") for @channels;
-                     }
                 } else {
-                     if ($debug==1) {
-                          $irc->yield(privmsg => $_, "Tokens not given to $twitchid for tweet, only $hours hours since last tweet") for @channels;
-                     }
+                     $logger->debug("Tokens not given to $twitchid for tweet, only $hours hours since last tweet");
                 } 
            }
        }
@@ -193,8 +168,7 @@ my $responder = AnyEvent::Twitter::Stream->new(
        my $tweet = shift;
        if ($tweet->{text}) {
            my $screen_name = $tweet->{user}{screen_name};
-           my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
-           print $clog "$logtime: Got a tweet from $screen_name.\n" if $debug==1;
+           $logger->debug("Got a tweet from $screen_name.");
            my $id = $tweet->{user}{id};
            my %hubs = ("Jita",30000142,"Hek",30002053,"Rens",30002510,"Amarr",30002187,"Dodixie",30002659);
            my $price="Market Hub Plex Prices - ";
@@ -204,9 +178,9 @@ my $responder = AnyEvent::Twitter::Stream->new(
            my $result = eval { $nt->new_direct_message({ text => $price , screen_name => $screen_name }) };
            if ( my $err = $@ ) {
                die $@ unless blessed $err && $err->isa('Net::Twitter::Lite::Error');
-               print $elog "HTTP Response Code: ".$err->code."\n";
-               print $elog "HTTP Message......: ".$err->message."\n";
-               print $elog "Twitter error.....: ".$err->error."\n";
+               print "HTTP Response Code: ".$err->code."\n";
+               print "HTTP Message......: ".$err->message."\n";
+               print "Twitter error.....: ".$err->error."\n";
            }
        }
     },
@@ -222,6 +196,7 @@ $done->recv;
 $poe_kernel->run();
  
 sub _start {
+     $logger->info("epi_twitter.pl starting!");
      my ($kernel, $heap) = @_[KERNEL ,HEAP];
      $heap->{connector} = POE::Component::IRC::Plugin::Connector->new();
      $irc->plugin_add('Connector' => $heap->{connector} );
