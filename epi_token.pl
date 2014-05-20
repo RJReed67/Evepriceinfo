@@ -2,7 +2,7 @@
 
 # epi_token.pl - Does the auto give of tokens every $interval,
 #                1 token for non-subscribers, 2 tokens for subscribers.
-#                Checks if a stream is online or offline every 5 minutes
+#                Checks if a stream is online or offline every minute
 #                and updates the Database with the status.
 #                Tracks the IRC part/join messages to keep track of who is watching.
 
@@ -11,10 +11,11 @@ use warnings;
 use Config::Simple;
 use POE;
 use POE::Component::IRC::State;
+use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 use DBI;
 use Log::Log4perl;
-use Log::Log4perl::Level;
+#use Log::Log4perl::Level;
 use LWP::Simple qw(!head);
 use LWP::UserAgent;
 use JSON;
@@ -26,8 +27,6 @@ use DateTime::Format::DateParse;
 use Time::Piece;
 use Time::Piece::MySQL;
 use Data::Dumper;
-use Scalar::Util 'blessed';
-use FileHandle;
 
 use constant {
      true	=> 1,
@@ -50,8 +49,7 @@ my $twitch_user = $ref->{'twitch_user'}->{'value'};
 my $twitch_pwd = $ref->{'twitch_pwd'}->{'value'};
 my $twitch_svr = $ref->{'twitch_svr'}->{'value'};
 my $twitch_port = $ref->{'twitch_port'}->{'value'};
-#my $debug = $ref->{'debug'}->{'value'};
-my $debug = 1;
+my $debug = $ref->{'debug'}->{'value'};
 my @channels = $ref->{'channel'}->{'value'};
 my $tw_following = $ref->{'tw_following'}->{'value'};
 my $tw_online = $ref->{'twitch_online_url'}->{'value'};
@@ -66,9 +64,9 @@ my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
 
 $sth->finish;
 
-Log::Log4perl::Logger::create_custom_level("TOKEN", "WARN");
 Log::Log4perl::init_and_watch($log_conf,60);
 my $logger = Log::Log4perl->get_logger;
+my $tokenlogger = Log::Log4perl->get_logger("token");
 
 my $offline_timer = 1;
 
@@ -85,9 +83,28 @@ my $irc = POE::Component::IRC::State->spawn(
         Debug => $debug,
 ) or die "Error: $!";
 
+my @cmds = ();
+my %help = ();
+
+push(@cmds,'_start');
+push(@cmds,'irc_public');
+push(@cmds,'irc_part');
+push(@cmds,'irc_join');
+push(@cmds,'irc_353');
+push(@cmds,'tick');
+push(@cmds,'check');
+$sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
+$sth->execute("token");
+$ref = $sth->fetchall_hashref('CmdKey');
+foreach ( keys %$ref ) {
+     push(@cmds,"irc_botcmd_".$ref->{$_}->{'Command'});
+     $help{$ref->{$_}->{'Command'}}=$ref->{$_}->{'HelpInfo'};
+}
+$sth->finish;
+
 POE::Session->create(
         package_states => [
-                main => [ qw(_start tick check irc_part irc_join irc_public irc_353 irc_001) ],
+                main => [ @cmds ],
         ],
 );
 
@@ -95,7 +112,7 @@ $poe_kernel->run();
  
 sub _start {
      $logger->info("epi_token.pl starting!");
-     $logger->token("epi_token.pl starting!");
+     $tokenlogger->debug("epi_token.pl starting!");
      my ($kernel, $heap) = @_[KERNEL ,HEAP];
      $heap->{connector} = POE::Component::IRC::Plugin::Connector->new();
      $irc->plugin_add('Connector' => $heap->{connector} );
@@ -103,6 +120,13 @@ sub _start {
      $kernel->alarm(tick => $heap->{next_alarm_time});
      $heap->{next_online_check} = int(time()) + $online_interval;
      $kernel->alarm_add(check => $heap->{next_online_check});
+     $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
+        Addressed => 0,
+        Prefix => '!',
+        Method => 'privmsg',
+        Ignore_unknown => 1,
+        Commands => { %help },
+     ));
      $irc->yield(register => qw(all));
      $irc->yield(connect => { } );
      return;
@@ -122,12 +146,12 @@ sub tick {
      $logger->debug("timer tick");
      if (&tw_stream_online("\#rushlock")) {
           $logger->debug("Online Tick");
-#          &online_token_time("\#rushlock");
+          &online_token_time("\#rushlock");
      } else {
           $logger->debug("Offline Tick number:$offline_timer");
           if ($offline_timer > 3) {
                $offline_timer = 0;
-#               &offline_token_time("\#rushlock");
+               &offline_token_time("\#rushlock");
           }
           $offline_timer = $offline_timer + 1;
      }
@@ -155,13 +179,13 @@ sub offline_token_time {
           my $secs = ($dt2 - $dt1)->seconds;
           my $duration = ($hours * 3600) + ($mins * 60) + $secs;
           if ($duration > 3000 && $duration < 4200) {
-               $logger->info("Giving a token to $twitchid");
+               $tokenlogger->info("Giving a token to $twitchid");
                $tokens = $tokens + 1;
                $sth = $dbh->prepare('UPDATE followers SET Tokens = ?, TTL = NULL WHERE TwitchID like ?');
                $sth->execute($tokens,$twitchid) or die "Error: ".$sth->errstr;
                $sth->finish;
           } else {
-               $logger->info("$twitchid didn't get a token. Duration: $duration");
+               $tokenlogger->info("$twitchid didn't get a token. Duration: $duration");
                $sth = $dbh->prepare('UPDATE followers SET TTL = NULL WHERE TwitchID like ?');
                $sth->execute($twitchid) or die "Error: ".$sth->errstr;
                $sth->finish;
@@ -188,14 +212,14 @@ sub online_token_time {
           my $duration = ($mins * 60) + $secs;
           if ($duration > ($interval - 60) && $duration < ($interval + 60)) {
                if (&tw_is_subscriber($twitchid)) {
-                    $logger->info("Giving 2 tokens to $twitchid.");
+                    $tokenlogger->info("Giving 2 tokens to $twitchid.");
                     $updates{$twitchid}=$tokens+2;
                } else {
-                    $logger->info("Giving a token to $twitchid.");;
+                    $tokenlogger->info("Giving a token to $twitchid.");;
                     $updates{$twitchid}=$tokens+1;
                }
           } else {
-               $logger->info("$twitchid didn't get a token. Duration: $duration");
+               $tokenlogger->info("$twitchid didn't get a token. Duration: $duration");
                $updates{$twitchid}=$tokens;
           }
      }
@@ -262,9 +286,114 @@ sub irc_353 {
      return;
 }
  
-sub irc_001 {
-     $irc->yield(join => $_) for @channels;
-     $irc->yield(privmsg => $_, '/color blue') for @channels;
+sub irc_botcmd_add {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$// if $arg ne '';
+     my ($change, $user) = split(' ', $arg, 2);
+     if ($irc->is_channel_operator($where,$nick)) {
+          my $sth;
+          if ($user eq "evepriceinfo") {
+               $sth = $dbh->prepare('SELECT Winner, GiveKey FROM giveaway WHERE AutoGive = 1 ORDER BY GiveKey LIMIT 1');
+               $sth->execute;
+               ($user,my $giveaway_key) = $sth->fetchrow_array;
+               $sth->finish;
+               $sth = $dbh->prepare('UPDATE giveaway SET AutoGive=0 WHERE GiveKey=?');
+               $sth->execute($giveaway_key);
+               $sth->finish;
+          }
+          $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+          $sth->execute($user);
+          my $ref = $sth->fetchrow_hashref();
+          if (!$ref) {
+               $irc->yield(privmsg => $where, "/me - User $user not found in token table.");
+          } else {
+               my $cur_tokens = $ref->{'Tokens'};
+               $sth = $dbh->prepare('UPDATE followers SET Tokens = ?, TTL = ?  WHERE TwitchID like ?');
+               $cur_tokens = $cur_tokens + $change;
+               $sth->execute($cur_tokens,$ref->{'TTL'},$user);
+               $irc->yield(privmsg => $where, "/me - $change tokens added to $user\'s balance.");
+               $sth->finish;
+          }
+          $sth->finish;
+     }
+     $tokenlogger->info("$nick added $change tokens to $user balance");
+     return;
+}
+
+sub irc_botcmd_take {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$//;
+     my ($change, $user) = split(' ', $arg, 2);
+     if ($irc->is_channel_operator($where,$nick)) {
+          my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
+          $tokenlogger->info("$nick subtracted $change tokens from $user balance");
+          my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+          $sth->execute($user);
+          my $ref = $sth->fetchrow_hashref();
+          if (!$ref) {
+               $irc->yield(privmsg => $where, "/me - User $user not found in token table.");
+          } else {
+               my $cur_tokens = $ref->{'Tokens'};
+               $sth = $dbh->prepare('UPDATE followers SET Tokens = ?, TTL = ? WHERE TwitchID like ?');
+               $cur_tokens = $cur_tokens - $change;
+               $sth->execute($cur_tokens,$ref->{'TTL'},$user);
+               $irc->yield(privmsg => $where, "/me - $change tokens taken from $user\'s balance.");
+          }
+     }
+
+     return;
+}
+
+sub irc_botcmd_token {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     my ($kernel, $self) = @_[KERNEL, OBJECT];
+     if ($arg) {
+          if ($irc->is_channel_operator($where,$nick) && $arg ne "?") {
+               my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+               $sth->execute($arg);
+               my $ref = $sth->fetchrow_hashref();
+               if (!$ref) {
+                    $irc->yield(privmsg => $where, "/me - User $arg not found in token table.");
+               } else {
+                    $irc->yield(privmsg => $where, "/me - $arg has $ref->{'Tokens'} tokens.");
+               }
+          } else {
+               if (&tw_stream_online) {
+                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter. Check your token balance AFTER the cast with the !token command");
+               } else {
+                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter.");
+               }
+          }
+     } else {
+          if (!&tw_stream_online("#rushlock")) {
+               my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+               $sth->execute($nick);
+               my $ref = $sth->fetchrow_hashref();
+               if (!$ref) {
+                    $irc->yield(privmsg => $where, "/me - User $nick not found in token table.");
+               } else {
+                    $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
+               }
+          } elsif ( &tw_is_subscriber($nick) ) {
+               my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+               $sth->execute($nick);
+               my $ref = $sth->fetchrow_hashref();
+               if (!$ref) {
+                    $irc->yield(privmsg => $where, "/me - User $nick not found in token table.");
+               } else {
+                    $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
+               }
+          } elsif (!&tw_is_subscriber($nick)) {
+               my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
+               $sth->execute("sub");
+               my $ref = $sth->fetchrow_hashref();
+               $irc->yield(privmsg => $where, "$ref->{'DisplayInfo'}");
+          }
+     }
+     $sth->finish;
      return;
 }
 

@@ -2,39 +2,21 @@
 
 use strict;
 use warnings;
-use AnyEvent::Twitter::Stream;
 use Config::Simple;
 use Data::Dumper;
 use DateTime;
-use DateTime::Duration;
-use DateTime::Format::MySQL;
-use DateTime::Format::DateParse;
 use DBI;
-use FileHandle;
-use JSON;
-use Locale::Currency::Format;
-use Log::Log4perl qw(get_logger :levels);
-use LWP::Simple qw(!head);
-use LWP::UserAgent;
-use Net::Twitter::Lite::WithAPIv1_1;
-use POE qw( Loop::AnyEvent );
+use Log::Log4perl;
+use POE;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
-use POE::Component::IRC::Plugin::Proxy;
-use POE::Component::IRC::Plugin::Logger;
-use Scalar::Util 'blessed';
-use Time::HiRes qw(time);
-use Time::Piece;
-use Time::Piece::MySQL;
-use XML::LibXML;
+use Proc::Simple;
 
 use constant {
      true	=> 1,
      false	=> 0,
 };
- 
-currency_set('USD','#,###.## ISK',FMT_COMMON);
 
 my $cfg = new Config::Simple('/opt/evepriceinfo/epi.conf'); 
 my $DBName = $cfg->param("DBName");
@@ -45,67 +27,301 @@ my $dbh = DBI->connect("DBI:mysql:database=$DBName;host=localhost",
                          "$DBUser", "$DBPassword",
                          {'RaiseError' => 1});
 $dbh->{mysql_auto_reconnect} = 1;
-my $sth = $dbh->prepare('SELECT * FROM epi_config');
+my $sth = $dbh->prepare('SELECT * FROM epi_configuration');
 $sth->execute;
 my $ref = $sth->fetchall_hashref('setting');
-#my $twitch_user = $ref->{'twitch_user'}->{'value'};
-#my $twitch_pwd = $ref->{'twitch_pwd'}->{'value'};
-#my $twitch_svr = $ref->{'twitch_svr'}->{'value'};
-#my $twitch_port = $ref->{'twitch_port'}->{'value'};
+my $twitch_user = $ref->{'twitch_user'}->{'value'};
+my $twitch_pwd = $ref->{'twitch_pwd'}->{'value'};
+my $twitch_svr = $ref->{'twitch_svr'}->{'value'};
+my $twitch_port = $ref->{'twitch_port'}->{'value'};
 my $debug = $ref->{'debug'}->{'value'};
-#my $twitch_following = $ref->{'twitch_following'}->{'value'};
-#my $tw_follow = $ref->{'tw_follow'}->{'value'};
-#my $tw_pwd = $ref->{'tw_pwd'}->{'value'};;
-my $token_time_interval = $ref->{'token_time_interval'}->{'value'};
 my $install_dir = $ref->{'install_dir'}->{'value'};
-my $log_dir = $install_dir.$ref->{'log_dir'}->{'value'};
-my @channels = ($ref->{'channels'}->{'value'});
-my $log_tokens = $ref->{'log_tokens'}->{'value'};
-my $token_filename = $log_dir.$ref->{'token_filename'}->{'value'};
-my $error_filename = $log_dir.$ref->{'error_filename'}->{'value'};
-my $token_exclude = $ref->{'token_exclude'}->{'value'};
-my $consumer_key = $ref->{'tw_consumer_key'}->{'value'};
-my $consumer_secret = $ref->{'tw_consumer_secret'}->{'value'};
-my $tw_token = $ref->{'tw_token'}->{'value'};
-my $tw_token_secret = $ref->{'tw_token_secret'}->{'value'};
-my $log_chat = $ref->{'log_chat'}->{'value'};
-my $token_amt_give = $ref->{'token_amt_give'}->{'value'};
-my $twitch_online_url = $ref->{'twitch_online_url'}->{'value'};
-my $auto_grant = $ref->{'auto_grant'}->{'value'};
+my @channels = ($ref->{'channel'}->{'value'});
+my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
 $sth->finish;
 
-my $giveaway_key = 0;
-my $giveaway_open = -1;
-my $giveaway_title = "";
-my $giveaway_threshold = 0;
-my $giveaway_autogive = 0;
-$sth = $dbh->prepare('SELECT COUNT(*) FROM giveaway');
+Log::Log4perl::init_and_watch($log_conf,60);
+my $logger = Log::Log4perl->get_logger;
+
+# Varibles for sub-processes
+
+my @subproc;
+my @subname;
+my @status;
+my @subfile;
+my @subactive;
+$sth = $dbh->prepare('SELECT * FROM ProcStatus ORDER BY ProcKey ASC');
 $sth->execute;
-my ($count) = $sth->fetchrow_array;
+while (my @row = $sth->fetchrow_array) {
+     $subproc[$row[0]] = Proc::Simple->new();
+     $subname[$row[0]] = $row[1];
+     $status[$row[0]] = 0;
+     $subfile[$row[0]] = $row[2];
+     $subactive[$row[0]] = $row[3];
+}
 $sth->finish;
-if ($count == 0) {
-     $giveaway_key = 0;
-     $giveaway_open = -1;
-     $giveaway_title = "";
-     $giveaway_threshold = 0;
-     $giveaway_autogive = 0;
-} else {
-     $sth = $dbh->prepare('SELECT * FROM giveaway ORDER BY GiveKey DESC LIMIT 1');
-     $sth->execute;
-     $ref = $sth->fetchrow_hashref();
-     if ($ref->{'EndDate'} eq "0000-00-00 00:00:00" ) {
-          $giveaway_key = $ref->{'GiveKey'};
-          $giveaway_open = 1;
-          $giveaway_title = $ref->{'GiveTitle'};
-          $giveaway_threshold = $ref->{'Threshold'};
-          $giveaway_autogive = $ref->{'AutoGive'};
-     } else {
-          $giveaway_key = 0;
-          $giveaway_open = -1;
-          $giveaway_title = "";
-          $giveaway_threshold = 0;
-          $giveaway_autogive = 0;
+
+$SIG{INT} = \&shutdown;
+
+my @cmds = ();
+my %help = ();
+
+push(@cmds,'_start');
+push(@cmds,'tick');
+push(@cmds,'irc_001');
+$sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
+$sth->execute('main');
+$ref = $sth->fetchall_hashref('CmdKey');
+foreach ( keys %$ref ) {
+     push(@cmds,"irc_botcmd_".$ref->{$_}->{'Command'});
+     $help{$ref->{$_}->{'Command'}}=$ref->{$_}->{'HelpInfo'};
+}
+$sth->finish;
+
+my $irc = POE::Component::IRC::State->spawn(
+        Nick   => $twitch_user,
+        Server => $twitch_svr,
+        Port => $twitch_port,
+        Username => $twitch_user,
+        Password => $twitch_pwd,
+        Debug => $debug,
+) or die "Error: $!";
+
+POE::Session->create(
+        package_states => [
+                main => [ @cmds ],
+        ],
+);
+
+$poe_kernel->run();
+
+sub _start {
+     $logger->info("epi_main.pl starting!");
+     my ($kernel, $heap) = @_[KERNEL ,HEAP];
+     $heap->{connector} = POE::Component::IRC::Plugin::Connector->new();
+     $irc->plugin_add('Connector' => $heap->{connector} );
+     $heap->{next_alarm_time} = int(time()) + 60;
+     $kernel->alarm(tick => $heap->{next_alarm_time});
+     $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
+        Addressed => 0,
+        Prefix => '!',
+        Method => 'privmsg',
+        Ignore_unknown => 1,
+        Commands => { %help },
+        Help_sub => \&help,
+     ));
+     $irc->yield(register => qw(all));
+     $irc->yield(connect => { } );
+     for (my $count = 1; $count < @subproc; $count++) {
+          if ($subactive[$count]) {
+               $status[$count] = $subproc[$count]->start("$install_dir/$subfile[$count]");
+               $logger->debug("Main starting sub-process: $subfile[$count]. Status: $status[$count]");
+          }
      }
+     $sth->finish;
+     return;
 }
 
-my $epi_logger =
+sub irc_001 {
+     $irc->yield(join => $_) for @channels;
+     $irc->yield(privmsg => $_, '/color blue') for @channels;
+     return;
+}
+
+sub tick {
+     my ($kernel,$heap) = @_[KERNEL,HEAP];
+     $heap->{next_alarm_time}=int(time())+60;
+     $kernel->alarm(tick => $heap->{next_alarm_time});
+     $logger->debug("Main timer tick");
+     for (my $count = 1; $count < @subproc; $count++) {
+          if ($subactive[$count]) {
+               $status[$count] = $subproc[$count]->poll();
+               if (!$status[$count]) {
+                    $logger->info("$subfile[$count] is not running! Attemping restart.");
+                    $status[$count] = $subproc[$count]->start("$install_dir/$subfile[$count]");
+               }
+          }
+     }
+     return;
+}
+
+sub irc_botcmd_botstats {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $where = $_[ARG1];
+     if (!$irc->is_channel_operator($where,$nick)) {
+          return;
+     }
+     my $sth = $dbh->prepare('SELECT COUNT(*) FROM followers');
+     $sth->execute();
+     my ($total_users) = $sth->fetchrow_array;
+     $sth->finish;
+     $sth = $dbh->prepare('SELECT COUNT(*) FROM rushlock_online_viewers');
+     $sth->execute();
+     my ($total_online) = $sth->fetchrow_array;
+     $sth->finish;
+     $irc->yield(privmsg => $where, "/me - Total usernames in DB: $total_users, Current users in chat: $total_online.");
+}
+
+sub irc_botcmd_setnews {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$//;
+     my $dt = DateTime->now;
+     $arg = $dt->strftime("%b %d, %Y").": ".$arg;
+     if ($irc->is_channel_operator($where,$nick)) {
+          $arg =~ s/^\!\w//;
+          my $sth = $dbh->prepare('UPDATE epi_info_cmds SET DisplayInfo=? WHERE CmdName LIKE ?');
+          $sth->execute($arg,'news');
+          $irc->yield(privmsg => $where, "/me - News Set!");
+     }
+     return;
+}
+
+sub irc_botcmd_reload {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$// if ($arg);
+     if ($nick !~ /rushlock|rjreed67/) {
+          return;
+     }
+     my $modsloaded="";
+     for (my $count = 1; $count < @subproc; $count++) {
+          $modsloaded = $modsloaded.$subname[$count]." " if $subactive[$count];
+     }
+     if ($arg eq 'list' || $arg eq '') {
+          $irc->yield(privmsg => $where, "/me - Modules that can be reloaded:");
+          my $msg = "";
+          $irc->yield(privmsg => $where, "/me - $modsloaded");
+          $irc->yield(privmsg => $where, "/me - command syntax: !reload ModuleName");
+     } else {
+          if ( $modsloaded =~ /$arg/ ) {
+               for (my $count = 1; $count < @subproc; $count++) {
+                    if ($subname[$count] =~ $arg) {
+                         $logger->info("$nick is restarting module $subname[$count]");
+                         $subproc[$count]->kill();
+                         sleep 2;
+                         $subproc[$count]->start("$install_dir/$subfile[$count]");
+                         $irc->yield(privmsg => $where, "/me - $arg has been reloaded.");
+                    }
+               }
+          } else {
+               $irc->yield(privmsg => $where, "/me - Invalid module name");
+          }
+     }
+     return;
+}
+
+sub irc_botcmd_activate {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$// if ($arg);
+     if ($nick !~ /rushlock|rjreed67/) {
+          return;
+     }
+     my $modsunloaded="";
+     for (my $count = 1; $count < @subproc; $count++) {
+          $modsunloaded = $modsunloaded.$subname[$count]." " if !$subactive[$count];
+     }
+     if ($arg eq 'list' || $arg eq '') {
+          $irc->yield(privmsg => $where, "/me - Modules that can be activated:");
+          my $msg = "";
+          $irc->yield(privmsg => $where, "/me - $modsunloaded");
+          $irc->yield(privmsg => $where, "/me - command syntax: !activate ModuleName");
+     } else {
+          if ( $modsunloaded =~ /$arg/ ) {
+               for (my $count = 1; $count < @subproc; $count++) {
+                    if ($subname[$count] =~ $arg) {
+                         $logger->info("$nick is starting module $subname[$count]");
+                         $status[$count] = $subproc[$count]->start("$install_dir/$subfile[$count]");
+                         $subactive[$count] = true;
+                         $irc->yield(privmsg => $where, "/me - $arg has been activated.");
+                    }
+               }
+          } else {
+               $irc->yield(privmsg => $where, "/me - Invalid module name");
+          }
+          &updateProcStatus;
+     }
+     return;
+}
+
+sub irc_botcmd_unload {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$// if ($arg);
+     if ($nick !~ /rushlock|rjreed67/) {
+          return;
+     }
+     my $modsloaded="";
+     for (my $count = 1; $count < @subproc; $count++) {
+          $modsloaded = $modsloaded.$subname[$count]." " if $subactive[$count];
+     }
+     if ($arg eq 'list' || $arg eq '') {
+          $irc->yield(privmsg => $where, "/me - Modules that can be unloaded:");
+          my $msg = "";
+          $irc->yield(privmsg => $where, "/me - $modsloaded");
+          $irc->yield(privmsg => $where, "/me - command syntax: !unload ModuleName");
+     } else {
+          if ( $modsloaded =~ /$arg/ ) {
+               for (my $count = 1; $count < @subproc; $count++) {
+                    if ($subname[$count] =~ $arg) {
+                         $logger->info("$nick is starting module $subname[$count]");
+                         $status[$count] = $subproc[$count]->kill();
+                         $subactive[$count] = false;
+                         $irc->yield(privmsg => $where, "/me - $arg has been unloaded.");
+                    }
+               }
+          } else {
+               $irc->yield(privmsg => $where, "/me - Invalid module name");
+          }
+          &updateProcStatus;
+     }
+     return;
+}
+
+sub updateProcStatus {
+     my $sth = $dbh->prepare('UPDATE ProcStatus SET Active = ? WHERE ProcKey = ?');
+     for (my $count = 1; $count < @subproc; $count++) {
+          $sth->execute($subactive[$count],$count);
+     }
+     $sth->finish;
+     return;
+}
+
+sub shutdown {
+     for (my $count = 1; $count < @subproc; $count++) {
+          $status[$count] = $subproc[$count]->kill();
+     }
+     die "Program Ended";
+}
+
+sub help {
+     my $sth;
+     my $where = "#rushlock";
+     my $arg = $_[1];
+     $arg =~ s/\s+$// if ($arg);
+     if ($arg) {
+          $sth = $dbh->prepare('SELECT HelpInfo FROM epi_commands WHERE Command like ?');
+          $sth->execute($arg);
+          my @row = $sth->fetchrow_array;
+          $irc->yield(privmsg => $where, "/me - Description: $row[0]");
+          $sth->finish;
+     } else {
+          my %helpmsg = ();
+          my $msg = "";
+          $sth = $dbh->prepare('SELECT * FROM epi_commands ORDER BY Command ASC');
+          $sth->execute;
+          $ref = $sth->fetchall_hashref('CmdKey');
+          foreach ( keys %$ref ) {
+               if ($ref->{$_}->{'CmdType'} eq 'info' || $ref->{$_}->{'CmdType'} eq 'custom') {
+                    $msg = $msg.$ref->{$_}->{'Command'}.", ";
+                    $helpmsg{$ref->{$_}->{'Command'}}=$ref->{$_}->{'HelpInfo'};
+               }
+          }
+          $sth->finish;
+          $msg =~ s/,$/\./;
+          $irc->yield(privmsg => $where, "/me - Commands: $msg");
+          $irc->yield(privmsg => $where, "/me - For more details, use: !help <command>");
+     }
+     return;
+}

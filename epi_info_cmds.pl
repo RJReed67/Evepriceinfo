@@ -54,7 +54,6 @@ my %rep = ();
 
 push(@cmds,'_start');
 push(@cmds,'irc_public');
-push(@cmds,'irc_001');
 push(@cmds,'irc_botcmd_info');
 $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdType like ?');
 $sth->execute("info");
@@ -73,8 +72,6 @@ foreach ( keys %$ref ) {
      $rep{$key}{counter}=0;
 }
 $sth->finish;
-push(@cmds,"irc_botcmd_reload");
-$help{"irc_botcmd_reload"}="";
 
 my $irc = POE::Component::IRC::State->spawn(
         Nick   => $twitch_user,
@@ -83,6 +80,7 @@ my $irc = POE::Component::IRC::State->spawn(
         Username => $twitch_user,
         Password => $twitch_pwd,
         Debug => $debug,
+        WhoJoiners => 0,
 ) or die "Error: $!";
 
 POE::Session->create(
@@ -129,12 +127,6 @@ sub irc_public {
      }
 }
 
-sub irc_001 {
-     $irc->yield(join => $_) for @channels;
-     $irc->yield(privmsg => $_, '/color blue') for @channels;
-     return;
-}
-
 sub irc_botcmd_info {
      my ($kernel, $heap) = @_[KERNEL ,HEAP];
      my $nick = (split /!/, $_[ARG0])[0];
@@ -157,23 +149,6 @@ sub irc_botcmd_info {
      my $ref = $sth->fetchrow_hashref();
      $irc->yield(privmsg => $where, "/me - ".$ref->{'DisplayInfo'});
      $sth->finish;
-     return;
-}
-
-sub irc_botcmd_reload {
-     my $nick = (split /!/, $_[ARG0])[0];
-     my $where = $_[ARG1];
-     if (!$irc->is_channel_operator($where,$nick)) {
-          return;
-     }
-     $logger->debug("Reload Command Issued by $nick");
-     my $sth = $dbh->prepare('SELECT * FROM epi_configuration');
-     $sth->execute;
-     my $ref = $sth->fetchall_hashref('setting');
-     $debug = $ref->{'debug'}->{'value'};
-     $interval = $ref->{'interval'}->{'value'};
-     $sth->finish;
-     $irc->yield(privmsg => $where, "/me - Values Updated.");
      return;
 }
 

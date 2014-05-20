@@ -45,8 +45,7 @@ my $twitch_user = $ref->{'twitch_user'}->{'value'};
 my $twitch_pwd = $ref->{'twitch_pwd'}->{'value'};
 my $twitch_svr = $ref->{'twitch_svr'}->{'value'};
 my $twitch_port = $ref->{'twitch_port'}->{'value'};
-#my $debug = $ref->{'debug'}->{'value'};
-my $debug = 1;
+my $debug = $ref->{'debug'}->{'value'};
 my $install_dir = $ref->{'install_dir'}->{'value'};
 my @channels = ($ref->{'channel'}->{'value'});
 my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
@@ -59,7 +58,6 @@ my @cmds = ();
 my %help = ();
 
 push(@cmds,'_start');
-push(@cmds,'irc_001');
 $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
 $sth->execute('zkb');
 $ref = $sth->fetchall_hashref('CmdKey');
@@ -80,6 +78,7 @@ my $irc = POE::Component::IRC::State->spawn(
         Username => $twitch_user,
         Password => $twitch_pwd,
         Debug => $debug,
+        WhoJoiners => 0,
 ) or die "Error: $!";
 
 POE::Session->create(
@@ -101,16 +100,10 @@ sub _start {
         Method => 'privmsg',
         Ignore_unknown => 1,
         Commands => { %help },
-#        Help_sub => \&help,
+        Help_sub => \&help,
      ));
      $irc->yield(register => qw(all));
      $irc->yield(connect => { } );
-     return;
-}
-
-sub irc_001 {
-     $irc->yield(join => $_) for @channels;
-     $irc->yield(privmsg => $_, '/color blue') for @channels;
      return;
 }
 

@@ -85,6 +85,7 @@ my $irc = POE::Component::IRC::State->spawn(
         Username => $twitch_user,
         Password => $twitch_pwd,
         Debug => $debug,
+        WhoJoiners => 0,
 ) or die "Error: $!";
 
 POE::Session->create(
