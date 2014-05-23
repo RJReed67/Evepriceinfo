@@ -431,3 +431,7 @@ sub CharIDLookup {
           return $value;
      }
 }
+
+sub help {
+     return;
+}

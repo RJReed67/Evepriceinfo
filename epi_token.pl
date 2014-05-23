@@ -15,7 +15,6 @@ use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 use DBI;
 use Log::Log4perl;
-#use Log::Log4perl::Level;
 use LWP::Simple qw(!head);
 use LWP::UserAgent;
 use JSON;
@@ -126,6 +125,7 @@ sub _start {
         Method => 'privmsg',
         Ignore_unknown => 1,
         Commands => { %help },
+        Help_sub => \&help,
      ));
      $irc->yield(register => qw(all));
      $irc->yield(connect => { } );
@@ -448,4 +448,8 @@ sub tw_is_subscriber {
           $logger->debug("$_[0] is a subscriber.");
           return 1;
      }
+}
+
+sub help {
+     return;
 }

@@ -12,6 +12,7 @@ use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 use Proc::Simple;
+use sigtrap qw/handler shutdown normal-signals/;
 
 use constant {
      true	=> 1,
@@ -60,8 +61,6 @@ while (my @row = $sth->fetchrow_array) {
      $subactive[$row[0]] = $row[3];
 }
 $sth->finish;
-
-$SIG{INT} = \&shutdown;
 
 my @cmds = ();
 my %help = ();

@@ -205,3 +205,13 @@ sub _start {
      $irc->yield(connect => { } );
      return;
 }
+
+sub GetXMLValue {
+     my $url = "http://api.eve-central.com/api/marketstat?usesystem=$_[0]&typeid=$_[1]";
+     my $parser = new XML::LibXML;
+     my $doc = eval { $parser->parse_file("$url") };
+     return 0 if $@;
+     my $xpath="//sell/min";
+     my $value = $doc->findvalue($_[2]);
+     return $value;
+}

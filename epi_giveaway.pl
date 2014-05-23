@@ -13,6 +13,8 @@ use LWP::UserAgent;
 use Time::HiRes qw(time);
 use Time::Piece;
 use Data::Dumper;
+use lib "/opt/evepriceinfo";
+use Token qw(token_add token_take);
 
 use constant {
      true	=> 1,
@@ -97,6 +99,8 @@ my %help = ();
 
 push(@cmds,'_start');
 push(@cmds,'say');
+push(@cmds,'giveaway_add');
+push(@cmds,'tick');
 $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
 $sth->execute('giveaway');
 $ref = $sth->fetchall_hashref('CmdKey');
@@ -300,7 +304,6 @@ sub irc_botcmd_tgw {
           $irc->yield(privmsg => $where, "/me - A giveaway is still open. Please close the giveaway before attempting to do a new one.");
           return;
      }
-     my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
      $logger->info("Timed Giveaway function called by: $nick");
      my ($kernel, $self) = @_[KERNEL, OBJECT];
      $giveaway_autogive = 1;
@@ -312,9 +315,30 @@ sub irc_botcmd_tgw {
      $kernel->delay_set(irc_botcmd_give => 180, $_[ARG0],$_[ARG1],$_[ARG2] );
      $_[ARG2]="draw";
      $kernel->delay_set(irc_botcmd_give => 190, $_[ARG0],$_[ARG1],$_[ARG2] );
-     $_[ARG2]="$token_give evepriceinfo";
-#     $kernel->delay_set(irc_botcmd_add => 220, $_[ARG0],$_[ARG1],$_[ARG2] );
-     $kernel->delay_set(say => 220, $_[ARG1],"!add $token_give evepriceinfo",1 );
+     $_[ARG2]="$token_give";
+     $kernel->delay_set(giveaway_add => 200, $_[ARG1], $_[ARG2] );
+     return;
+}
+
+sub giveaway_add {
+     my ($where, $change) = @_[ARG0, ARG1];
+     my $sth = $dbh->prepare('SELECT Winner, GiveKey FROM giveaway WHERE AutoGive = 1 ORDER BY GiveKey LIMIT 1');
+     $sth->execute;
+     my ($user, $giveaway_key) = $sth->fetchrow_array;
+     $sth->finish;
+     $sth = $dbh->prepare('UPDATE giveaway SET AutoGive=0 WHERE GiveKey=?');
+     $sth->execute($giveaway_key);
+     $sth->finish;
+     $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+     $sth->execute($user);
+     my $ref = $sth->fetchrow_hashref();
+     if (!$ref) {
+          $irc->yield(privmsg => $where, "/me - User $user not found in token table.");
+     } else {
+          token_add("evepriceinfo",$change,$user);
+          $irc->yield(privmsg => $where, "/me - $change tokens added to $user balance.");
+     }
+     $sth->finish;
      return;
 }
 
