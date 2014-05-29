@@ -267,18 +267,24 @@ sub irc_botcmd_give {
                my $sql = 'SELECT * FROM entrylist';
                my @ref = @{$dbh->selectcol_arrayref($sql)};
                my $count = @ref;
-               $irc->yield(privmsg => $where, "/me - There are $count entries in the $giveaway_title.");
-               my $winner = $ref[int(rand(0+$count))];
                my $sth = $dbh->prepare('UPDATE giveaway SET Winner=? WHERE GiveKey=?');
-               $sth->execute($winner,$giveaway_key);
-               my $winner2 = "";
-               if ( &tw_user_follow($winner) == 0 ) {
-                  $winner2 = $winner." (follower)";
+               if ($count > 0) {
+                    $irc->yield(privmsg => $where, "/me - There are $count entries in the $giveaway_title.");
+                    my $winner = $ref[int(rand(0+$count))];
+                    $sth->execute($winner,$giveaway_key);
+                    my $winner2 = "";
+                    if ( &tw_user_follow($winner) == 0 ) {
+                        $winner2 = $winner." (follower)";
+                    } else {
+                        $winner2 = $winner." (not following)";
+                    }
+                    $irc->yield(privmsg => $where, "/me - The winner of $giveaway_title is $winner2! Congratulations!");
+                    $irc->yield(privmsg => $where, "/me - $winner! Come On Down!");
                } else {
-                  $winner2 = $winner." (not following)";
+                    $irc->yield(privmsg => $where, "/me - No one entered for $giveaway_title.");
+                    $sth->execute("NoOne",$giveaway_key);
                }
-               $irc->yield(privmsg => $where, "/me - The winner of $giveaway_title is $winner2! Congratulations!");
-               $irc->yield(privmsg => $where, "/me - $winner! Come On Down!");
+               $sth->finish;
           }
      } elsif ($arg =~ /^history/) {
           my $sth = $dbh->prepare('SELECT * FROM giveaway ORDER BY GiveKey DESC LIMIT 3');
