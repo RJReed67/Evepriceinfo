@@ -337,6 +337,7 @@ sub giveaway_add {
      } else {
           token_add("evepriceinfo",$change,$user);
           $irc->yield(privmsg => $where, "/me - $change tokens added to $user balance.");
+          $giveaway_autogive = 0;
      }
      $sth->finish;
      return;

@@ -368,7 +368,7 @@ sub irc_botcmd_token {
                }
           }
      } else {
-          if (!&tw_stream_online("#rushlock")) {
+          if (!&tw_stream_online($where)) {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
                $sth->execute($nick);
                my $ref = $sth->fetchrow_hashref();

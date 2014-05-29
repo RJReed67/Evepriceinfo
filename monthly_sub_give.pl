@@ -4,8 +4,8 @@ use strict;
 use warnings;
 use Config::Simple;
 use DBI;
+use Log::Log4perl;
 use POSIX qw(strftime);
-use FileHandle;
 
 my $cfg = new Config::Simple('/opt/evepriceinfo/epi.conf'); 
 my $DBName = $cfg->param("DBName");
@@ -23,28 +23,25 @@ my $sth = $dbh->prepare('SELECT * FROM epi_configuration');
 $sth->execute;
 my $ref = $sth->fetchall_hashref('setting');
 my $install_dir = $ref->{'install_dir'}->{'value'};
-my $log_dir = $install_dir.$ref->{'log_dir'}->{'value'};
-my $log_token = $ref->{'log_token'}->{'value'};
+my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
 $sth->finish;
-my $token_log = $log_dir."/token-log.txt";
-my $tlog;
-if ($log_token == 1) {
-      $tlog = FileHandle->new(">> $token_log");
-      $tlog->autoflush(1);
-}
+
+Log::Log4perl::init_and_watch($log_conf,60);
+my $logger = Log::Log4perl->get_logger;
+my $tokenlogger = Log::Log4perl->get_logger("token");
 
 $sth = $dbh->prepare('SELECT * FROM Rushlock_TwitchSubs');
 $sth->execute;
 $ref = $sth->fetchall_hashref('TwitchName');
 $sth->finish;
+$logger->info("Starting monthly Subscriber perk scan");
 foreach my $key (keys $ref ) {
    my @SubDate = split(/-/,$ref->{$key}{SubDate});
    if ($today eq $SubDate[2]) {
       $sth = $dbh->prepare('CALL AddTokens(200,?)');
       $sth->execute($key);
       $sth->finish;
-      my $logtime = strftime "%m/%d/%Y %H:%M:%S", localtime;
-      print $tlog "$logtime: EvePriceInfo added 200 tokens to $key balance\n" if $log_token==1;
+      $tokenlogger->info("Subscriber perk: added 200 tokens to $key balance");
    }
 }
-$tlog->close;
+$logger->info("Ending monthly Subscriber perk scan");
