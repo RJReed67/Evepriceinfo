@@ -110,7 +110,7 @@ sub _start {
           if ($rep{$_}{repeat} == 1) {
                my $cmdname = $_;
                my $cmdtimer = $rep{$_}{timer};
-               $kernel->delay(irc_botcmd_info => $cmdtimer,('evepriceinfo!evepriceinfo@evepriceinfo.twitch.tv','#rushlock',$cmdname));
+               $kernel->delay_add(irc_botcmd_info => $cmdtimer,('evepriceinfo!evepriceinfo@evepriceinfo.twitch.tv','#rushlock',$cmdname));
           }
      }
      return;
