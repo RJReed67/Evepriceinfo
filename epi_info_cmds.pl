@@ -69,7 +69,7 @@ foreach ( keys %$ref ) {
      $rep{$key}{repeat}="$repeat";
      $rep{$key}{timer}="$cycletime";
      $rep{$key}{lines}="$lines";
-     $rep{$key}{counter}=0;
+     $rep{$key}{count}=0;
 }
 $sth->finish;
 
@@ -137,9 +137,9 @@ sub irc_botcmd_info {
           $logger->debug("$arg counter: $rep{$arg}{count}");
           if ($rep{$arg}{repeat} == true && $rep{$arg}{count} >= $rep{$arg}{lines}) {
                $rep{$arg}{count} = 0;
-               $kernel->delay('irc_botcmd_info' => $rep{$arg}{timer}, $_[ARG0], $_[ARG1], $arg);
+               $kernel->delay_add('irc_botcmd_info' => $rep{$arg}{timer}, $_[ARG0], $_[ARG1], $arg);
           } else {
-               $kernel->delay('irc_botcmd_info' => $rep{$arg}{timer}, $_[ARG0], $_[ARG1], $arg);
+               $kernel->delay_add('irc_botcmd_info' => $rep{$arg}{timer}, $_[ARG0], $_[ARG1], $arg);
                return;
           }
      }

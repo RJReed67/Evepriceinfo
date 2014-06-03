@@ -17,6 +17,7 @@ use POE::Component::IRC::Plugin::Connector;
 use Switch;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
+use EPIUser qw(is_owner);
 
 use constant {
      true	=> 1,
@@ -249,6 +250,38 @@ sub irc_botcmd_bacon {
                 'Bacon accounted for nearly half of breakfast meat serving volume',
                 'More than half of all homes (53%) keep bacon on hand at all times');
      $irc->yield(privmsg => $where, "/me - $msg[rand(@msg)%@msg]");
+     return;
+}
+
+sub irc_botcmd_auth {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $user) = @_[ARG1, ARG2];
+     if (!$user) {
+          return;
+     }
+     if (is_owner($nick)) {
+          my $sth = $dbh->prepare('INSERT IGNORE INTO AuthorizedUsers SET TwitchID = ?');
+          $sth->execute($user);
+          $irc->yield(privmsg => $where, "/me - $user is now an authorized user.");
+          $logger->info("$nick added $user as an authorized user.");
+          $sth->finish;
+     }
+     return;
+}
+
+sub irc_botcmd_deauth {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $user) = @_[ARG1, ARG2];
+     if (!$user) {
+          return;
+     }
+     if (is_owner($nick)) {
+          my $sth = $dbh->('DELETE IGNORE FROM AuthorizedUsers WHERE TwitchID = ?');
+          $sth->execute($user);
+          $irc->yield(privmsg => $where, "/me - $user is no longer an authorized user.");
+          $logger->info("$nick removed $user as an authorized user.");
+          $sth->finish;
+     }
      return;
 }
 
