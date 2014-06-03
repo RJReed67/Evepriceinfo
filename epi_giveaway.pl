@@ -15,6 +15,7 @@ use Time::Piece;
 use Data::Dumper;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
+use EPIUser qw(is_subscriber is_authorized is_owner);
 
 use constant {
      true	=> 1,
@@ -169,7 +170,7 @@ sub irc_botcmd_wg500 {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$//;
-     if ($irc->is_channel_operator($where,$nick)) {
+     if (is_authorized($where,$nick)) {
           if ($arg) {
                $irc->yield(privmsg => $where, "/me - All isk from loot/salvage/ore gathered during the week, will be added to the weekly drawing. 500 Token req to be entered automatically. You do not need to be present to win. Drawing is done on Sunday of each week.");
           } else {
@@ -201,7 +202,7 @@ sub irc_botcmd_wg500 {
 sub irc_botcmd_give {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
-     if (!$irc->is_channel_operator($where,$nick)) {
+     if (!is_authorized($where,$nick)) {
           return;
      }
      $arg =~ s/\s+$//;
@@ -303,7 +304,7 @@ sub irc_botcmd_give {
 sub irc_botcmd_tgw {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
-     if (!$irc->is_channel_operator($where,$nick)) {
+     if (!is_authorized($where,$nick)) {
           return;
      }
      if ($giveaway_open == true) {
@@ -353,7 +354,7 @@ sub irc_botcmd_t1sgw {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$//;
-     if (!$irc->is_channel_operator($where,$nick)) {
+     if (!is_authorized($where,$nick)) {
           return;
      }
      $logger->info("Tech 1 ship Giveaway called by $nick with Args: $arg");

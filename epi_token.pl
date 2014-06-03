@@ -26,6 +26,9 @@ use DateTime::Format::DateParse;
 use Time::Piece;
 use Time::Piece::MySQL;
 use Data::Dumper;
+use lib "/opt/evepriceinfo";
+use Token qw(token_add token_take);
+use EPIUser qw(is_subscriber is_authorized is_owner);
 
 use constant {
      true	=> 1,
@@ -210,8 +213,9 @@ sub online_token_time {
           my $mins = ($dt2 - $dt1)->minutes;
           my $secs = ($dt2 - $dt1)->seconds;
           my $duration = ($mins * 60) + $secs;
+          my $sublevel = is_subscriber($where,$twitchid);
           if ($duration > ($interval - 60) && $duration < ($interval + 60)) {
-               if (&tw_is_subscriber($twitchid)) {
+               if (&tw_is_subscriber($twitchid) || $sublevel > 4) {
                     $tokenlogger->info("Giving 2 tokens to $twitchid.");
                     $updates{$twitchid}=$tokens+2;
                } else {
@@ -265,9 +269,9 @@ sub irc_public {
      if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
           my @subuser = split(' ',$msg);
           $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
-          my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?');
+          my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?, SubLeve = ?');
           my $subdate = Time::Piece->new->strftime('%Y-%m-%d');
-          $sth->execute($subuser[0],$subdate);
+          $sth->execute($subuser[0],$subdate,5);
           $sth->finish;
           $logger->info("$subuser[0] subscribed to the channel.");
      }

@@ -3,20 +3,22 @@
 use strict;
 use warnings;
 use Config::Simple;
+use Data::Dumper;
 use DateTime;
 use DateTime::Duration;
 use DateTime::Format::MySQL;
 use DateTime::Format::DateParse;
+use DBI;
 use List::Util qw(shuffle);
+use Log::Log4perl;
 use POE;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
-use DBI;
-use Log::Log4perl;
-use Data::Dumper;
+use Switch;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
+use EPIUser qw(is_subscriber is_authorized is_owner);
 
 use constant {
      true	=> 1,
@@ -99,7 +101,6 @@ sub _start {
 sub irc_botcmd_slot {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
-#     return if &tw_stream_online($where);
      if (!$arg) {
           $irc->yield(privmsg => $where, "/me - TwitchSlots, use 1 to 3 tokens. Payout Table: http://tinyurl.com/twitchslots");
           return;
@@ -133,10 +134,15 @@ sub irc_botcmd_slot {
           my $secs = ($dt2 - $dt1)->seconds;
           $duration = ($hours * 3600) + ($mins * 60) + $secs;
      } else {
-          $duration = 61;
+          $duration = 301;
      }
-     if ($duration < 60) {
-          $irc->yield(privmsg => $where, "/me - $nick, you can only play once every 1 minutes.");
+     my $sublevel = is_subscriber($where,$nick);
+     my $threshold = 300;
+     switch ($sublevel) {
+          case [1..100]    {$threshold=60}
+     }
+     if ($duration < $threshold) {
+          $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minutes.");
           return;
      }
      my $sth = $dbh->prepare('INSERT INTO SlotTime (TwitchID,SlotTime) VALUES (?,NULL) ON DUPLICATE KEY UPDATE SlotTime = NULL');
@@ -246,7 +252,7 @@ sub irc_botcmd_slot {
      return;
 }
 
-sub irc_botcmd_bj {
+sub irc_botcmd_bjdeal {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      return if &tw_stream_online($where);
@@ -283,10 +289,15 @@ sub irc_botcmd_bj {
           my $secs = ($dt2 - $dt1)->seconds;
           $duration = ($hours * 3600) + ($mins * 60) + $secs;
      } else {
-          $duration = 61;
+          $duration = 301;
      }
-     if ($duration < 60) {
-          $irc->yield(privmsg => $where, "/me - $nick, you can only play once every 1 minutes.");
+     my $sublevel = $dbh->selectrow_array("SELECT SubLevel FROM Rushlock_TwitchSubs WHERE TwitchName = \"$nick\"");
+     my $threshold = 300;
+     switch ($sublevel) {
+          case [1..100]    {$threshold=60}
+     }
+     if ($duration < $threshold) {
+          $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minutes.");
           return;
      }
      my $sth = $dbh->prepare('INSERT INTO BJTime (TwitchID,BJTime) VALUES (?,NULL) ON DUPLICATE KEY UPDATE BJTime = NULL');

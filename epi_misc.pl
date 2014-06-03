@@ -14,6 +14,7 @@ use POE;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
+use Switch;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
 
@@ -198,7 +199,15 @@ sub irc_botcmd_tip {
      $sth->finish;
      $irc->yield(privmsg => $where, "/me - There are currently $tips tokens in my jar.");
      my $rand = rand(100)%100;
-     if ($rand < 5) {
+     my $winner = false;
+     switch ($arg) {
+          case [5..100]       {$winner = true if $rand < 1}
+          case [101..200]     {$winner = true if $rand < 2}
+          case [201..300]     {$winner = true if $rand < 3}
+          case [301..400]     {$winner = true if $rand < 4}
+          else                {$winner = true if $rand < 5}
+     }
+     if ($winner) {
           $irc->yield(privmsg => $where, "/me - You know what? I am going to split my tips with you!");
           my $give_amt = int($tips/2);
           my $result = token_add("evepriceinfo",$give_amt,$nick);
