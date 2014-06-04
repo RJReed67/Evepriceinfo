@@ -124,8 +124,22 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
     on_tweet        => sub { 
        my $tweet = shift;
        if ($tweet->{text}) {
-           my $sth = $dbh->prepare('SELECT a.TwitchID, a.Tokens, b.TTL FROM `followers` a LEFT JOIN `TwitterID2TwitchID` b ON a.TwitchID = b.TwitchID WHERE b.TwitterID IS NOT NULL AND b.TwitterID like ?');
+           my $sth;
+           my $tweetmsg = $tweet->{text};
            my $id = "\@".$tweet->{user}{screen_name};
+           if ($id =~ m/rushlock/i) {
+               $sth = $dbh->prepare('UPDATE TwitterInfo SET Count = ?, Tweet = ?');
+               $sth->execute(0,$tweetmsg);
+               $sth->finish;
+           } elsif ($tweetmsg =~ m/#rushlock/i) {
+               my $count = $dbh->selectrow_array('SELECT Count FROM TwitterInfo');
+               $count = $count + 1;
+               $sth = $dbh->prepare('UPDATE TwitterInfo SET Count = ?');
+               $sth->execute($count) or die "Error: ".$sth->errstr;
+               $sth->finish;
+               $irc->yield(privmsg => "#rushlock", "Tweet count for the day: $count");
+           }
+           $sth = $dbh->prepare('SELECT a.TwitchID, a.Tokens, b.TTL FROM `followers` a LEFT JOIN `TwitterID2TwitchID` b ON a.TwitchID = b.TwitchID WHERE b.TwitterID IS NOT NULL AND b.TwitterID like ?');
            $logger->info("Got a tweet from $id.");
            $sth->execute($id) or die "Error: ".$sth->errstr;
            my $rows = $sth->rows;

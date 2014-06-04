@@ -173,10 +173,11 @@ sub irc_botcmd_tip {
      if ($lasttip && &tw_stream_online($where)) {
           my $dt1 = DateTime::Format::MySQL->parse_datetime($lasttip);
           my $dt2 = DateTime->now(time_zone=>'local');
+          my $days = ($dt2 - $dt1)->days;
           my $hours = ($dt2 - $dt1)->hours;
           my $mins = ($dt2 - $dt1)->minutes;
           my $secs = ($dt2 - $dt1)->seconds;
-          $duration = ($hours * 3600) + ($mins * 60) + $secs;
+          $duration = ($days * 86400) + ($hours * 3600) + ($mins * 60) + $secs;
      } else {
           $duration = 301;
      }
@@ -282,6 +283,14 @@ sub irc_botcmd_deauth {
           $logger->info("$nick removed $user as an authorized user.");
           $sth->finish;
      }
+     return;
+}
+
+sub irc_botcmd_tweet {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $where = $_[ARG1];
+     my $tweet = $dbh->selectrow_array('SELECT Tweet FROM TwitterInfo');
+     $irc->yield(privmsg => $where, "/me - Latest Tweet from Rushlock: $tweet");
      return;
 }
 

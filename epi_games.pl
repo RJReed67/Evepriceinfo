@@ -129,10 +129,11 @@ sub irc_botcmd_slot {
      if ($lastslot) {
           my $dt1 = DateTime::Format::MySQL->parse_datetime($lastslot);
           my $dt2 = DateTime->now(time_zone=>'local');
+          my $days = ($dt2 - $dt1)->days;
           my $hours = ($dt2 - $dt1)->hours;
           my $mins = ($dt2 - $dt1)->minutes;
           my $secs = ($dt2 - $dt1)->seconds;
-          $duration = ($hours * 3600) + ($mins * 60) + $secs;
+          $duration = ($days * 86400) + ($hours * 3600) + ($mins * 60) + $secs;
      } else {
           $duration = 301;
      }
@@ -284,10 +285,11 @@ sub irc_botcmd_bjdeal {
      if ($lastbj) {
           my $dt1 = DateTime::Format::MySQL->parse_datetime($lastbj);
           my $dt2 = DateTime->now(time_zone=>'local');
+          my $days = ($dt2 - $dt1)->days;
           my $hours = ($dt2 - $dt1)->hours;
           my $mins = ($dt2 - $dt1)->minutes;
           my $secs = ($dt2 - $dt1)->seconds;
-          $duration = ($hours * 3600) + ($mins * 60) + $secs;
+          $duration = ($days * 86400) + ($hours * 3600) + ($mins * 60) + $secs;
      } else {
           $duration = 301;
      }
