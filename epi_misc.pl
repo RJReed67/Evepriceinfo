@@ -117,7 +117,10 @@ sub irc_botcmd_addtweetid {
                $irc->yield(privmsg => $where, "/me - $nick set to $user.");
                $logger->info("Twitch ID $nick has been linked to $user.");
           } else {
-               $irc->yield(privmsg => $where, "/me - $nick already in database.");
+               $sth = $dbh->prepare('UPDATE TwitterID2TwitchID SET TwitterID = ? WHERE TwitchID = ?');
+               $sth->execute($user,$nick) or die "Error: ".$sth->errstr;
+               $irc->yield(privmsg => $where, "/me - $nick updated to $user.");
+               $logger->info("Twitch ID $nick has been updated to $user.");
           }
      }
      return;
@@ -151,7 +154,6 @@ sub irc_botcmd_tip {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      my $tips = $dbh->selectrow_array('SELECT * FROM TipJar');
-     $irc->yield(privmsg => $where, "/me - Don't be a cheapskate $nick, give me 5 or more tokens! You could win half of the tokens in the Tip Jar!") if !$arg;
      $irc->yield(privmsg => $where, "/me - Current tokens in the jar: $tips") if !$arg;
      $irc->yield(privmsg => $where, "/me - Usage: !tip <#ofTokens>") if !$arg;
      return if !$arg;
@@ -160,7 +162,7 @@ sub irc_botcmd_tip {
           return;
      }
      if ($arg < 5) {
-          $irc->yield(privmsg => $where, "/me - $nick, you have to tip me more than 5 tokens!");
+          $irc->yield(privmsg => $where, "/me - $nick, you have to tip me 5 or more tokens!");
           return;
      }
      my $max = $dbh->selectrow_array("SELECT Tokens FROM followers WHERE TwitchID = \"$nick\"");
@@ -170,7 +172,7 @@ sub irc_botcmd_tip {
      }
      my $lasttip = $dbh->selectrow_array("SELECT TipTime FROM TipTime WHERE TipperID = \"$nick\"");
      my $duration;
-     if ($lasttip && &tw_stream_online($where)) {
+     if ($lasttip) {
           my $dt1 = DateTime::Format::MySQL->parse_datetime($lasttip);
           my $dt2 = DateTime->now(time_zone=>'local');
           my $days = ($dt2 - $dt1)->days;

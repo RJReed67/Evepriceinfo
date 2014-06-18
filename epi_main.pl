@@ -295,8 +295,9 @@ sub shutdown {
 }
 
 sub help {
-     my $nick = (split /!/, $_[ARG0])[0];
-     my ($where, $arg) = @_[ARG1, ARG2];
+#     my $nick = (split /!/, $_[ARG0])[0];
+#     my ($where, $arg) = @_[ARG1, ARG2];
+     my $where = "#rushlock";
      my $sth;
      my $arg = $_[1];
      $arg =~ s/\s+$// if ($arg);

@@ -366,7 +366,7 @@ sub irc_botcmd_token {
                }
           } else {
                if (&tw_stream_online) {
-                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter. Check your token balance AFTER the cast with the !token command");
+                    $irc->yield(privmsg => $where, "/me - Unlock !token while we are online and other perks by subscribing here on Twitch or supporting via patreon.com/rushlock");
                } else {
                     $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter.");
                }
@@ -394,7 +394,7 @@ sub irc_botcmd_token {
                my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
                $sth->execute("sub");
                my $ref = $sth->fetchrow_hashref();
-               $irc->yield(privmsg => $where, "$ref->{'DisplayInfo'}");
+               $irc->yield(privmsg => $where, "/me - $ref->{'DisplayInfo'}");
           }
      }
      $sth->finish;

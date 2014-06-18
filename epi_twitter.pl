@@ -118,7 +118,7 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
     token           => $tw_token,
     token_secret    => $tw_token_secret,
     method          => "filter",
-    track           => "#Rushlock",
+    track           => "#Rushlock,#rushlock",
     api_url         => "https://userstream.twitter.com/1.1/user.json",
     timeout         => 300,
     on_tweet        => sub { 
@@ -137,7 +137,16 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
                $sth = $dbh->prepare('UPDATE TwitterInfo SET Count = ?');
                $sth->execute($count) or die "Error: ".$sth->errstr;
                $sth->finish;
-               $irc->yield(privmsg => "#rushlock", "Tweet count for the day: $count");
+               $sth = $dbh->prepare('SELECT * FROM TwitterID2TwitchID WHERE TwitterID like ?');
+               $sth->execute($id);
+               my $rowcount = $sth->rows;
+               if ($rowcount > 0) {
+                    my @result = $sth->fetchrow_array();
+                    $irc->yield(privmsg => "#rushlock", "/me - Tweet from $result[0], current count: $count");
+               } else {
+                    $irc->yield(privmsg => "#rushlock", "/me - Tweet count for the day: $count");
+               }
+               $sth->finish;
            }
            $sth = $dbh->prepare('SELECT a.TwitchID, a.Tokens, b.TTL FROM `followers` a LEFT JOIN `TwitterID2TwitchID` b ON a.TwitchID = b.TwitchID WHERE b.TwitterID IS NOT NULL AND b.TwitterID like ?');
            $logger->info("Got a tweet from $id.");
@@ -155,8 +164,8 @@ my $listener2 = AnyEvent::Twitter::Stream->new(
                 my $hours = ($dt2 - $dt1)->hours;
                 my $duration = ($days * 24) + $hours;
                 if ($duration > 18) {
-                     $tokenlogger->info("Giving 5 tokens to \"$twitchid\" for tweeting.");
-                     $tokens = $tokens + 5;
+                     $tokenlogger->info("Giving 20 tokens to \"$twitchid\" for tweeting.");
+                     $tokens = $tokens + 20;
                      $sth = $dbh->prepare('UPDATE followers SET Tokens = ? WHERE TwitchID like ?');
                      $sth->execute($tokens,$twitchid) or die "Error: ".$sth->errstr;
                      $sth->finish;

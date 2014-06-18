@@ -19,6 +19,7 @@ use Switch;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
 use EPIUser qw(is_subscriber is_authorized is_owner);
+use EPIBlackJack qw(newshoe deal show_game givecard valuehand eval_game);
 
 use constant {
      true	=> 1,
@@ -105,7 +106,7 @@ sub irc_botcmd_slot {
           $irc->yield(privmsg => $where, "/me - TwitchSlots, use 1 to 3 tokens. Payout Table: http://tinyurl.com/twitchslots");
           return;
      }
-     if ($arg =~ /help/) {
+     if ($arg =~ /help/ || $arg =~ /\?/) {
           $irc->yield(privmsg => $where, "/me - TwitchSlots, use 1 to 3 tokens. Payout Table: http://tinyurl.com/twitchslots");
           return;
      }
@@ -142,8 +143,7 @@ sub irc_botcmd_slot {
      switch ($sublevel) {
           case [1..100]    {$threshold=60}
      }
-     if ($duration < $threshold) {
-          $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minutes.");
+     if (!timelimit($where,$nick,$threshold,$duration)) {
           return;
      }
      my $sth = $dbh->prepare('INSERT INTO SlotTime (TwitchID,SlotTime) VALUES (?,NULL) ON DUPLICATE KEY UPDATE SlotTime = NULL');
@@ -253,26 +253,25 @@ sub irc_botcmd_slot {
      return;
 }
 
-sub irc_botcmd_bjdeal {
+sub irc_botcmd_deal {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      return if &tw_stream_online($where);
+#     return if (!is_owner($nick));
      if (!$arg) {
-          $irc->yield(privmsg => $where, "/me - BlackJack, use 1 to 100 tokens.");
+          $irc->yield(privmsg => $where, "/me - BlackJack, use 1 to 25 tokens.");
           return;
      }
      if ($arg =~ /help/) {
-          $irc->yield(privmsg => $where, "/me - BlackJack, use 1 to 100 tokens.");
+          $irc->yield(privmsg => $where, "/me - BlackJack, use 1 to 25 tokens.");
           return;
      }
      if ($arg !~ /^\d+$/) {
           $irc->yield(privmsg => $where, "/me - $nick, The number of tokens must be a number!");
           return;
      }
-     $irc->yield(privmsg => $where, "/me - Must specify how many tokens to use (1 - 100).") if !$arg;
-     return if !$arg;
-     if ($arg < 1 || $arg > 100) {
-          $irc->yield(privmsg => $where, "/me - Must use 1 to 100 tokens for BlackJack.");
+     if ($arg < 1 || $arg > 25) {
+          $irc->yield(privmsg => $where, "/me - Must use 1 to 25 tokens for BlackJack.");
           return;
      }
      my $max = $dbh->selectrow_array("SELECT Tokens FROM followers WHERE TwitchID = \"$nick\"");
@@ -280,7 +279,7 @@ sub irc_botcmd_bjdeal {
           $irc->yield(privmsg => $where, "/me - $nick, you do not have $arg tokens!");
           return;
      }
-     my $lastbj = $dbh->selectrow_array("SELECT BJTime FROM BJTime WHERE TwitchID = \"$nick\"");
+     my $lastbj = $dbh->selectrow_array("SELECT TTL FROM BJGame WHERE TwitchID = \"$nick\"");
      my $duration;
      if ($lastbj) {
           my $dt1 = DateTime::Format::MySQL->parse_datetime($lastbj);
@@ -291,60 +290,108 @@ sub irc_botcmd_bjdeal {
           my $secs = ($dt2 - $dt1)->seconds;
           $duration = ($days * 86400) + ($hours * 3600) + ($mins * 60) + $secs;
      } else {
-          $duration = 301;
+          newshoe($nick,$arg);
+          $irc->yield(privmsg => $where, "/me - $nick, starting with a new shoe!");
+          $duration = 3601;
      }
      my $sublevel = $dbh->selectrow_array("SELECT SubLevel FROM Rushlock_TwitchSubs WHERE TwitchName = \"$nick\"");
      my $threshold = 300;
      switch ($sublevel) {
           case [1..100]    {$threshold=60}
      }
-     if ($duration < $threshold) {
-          $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minutes.");
+     if (!timelimit($where,$nick,$threshold,$duration)) {
           return;
      }
-     my $sth = $dbh->prepare('INSERT INTO BJTime (TwitchID,BJTime) VALUES (?,NULL) ON DUPLICATE KEY UPDATE BJTime = NULL');
+     token_take("evepriceinfo",$arg,$nick);
+     my $shoe;
+     my $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
      $sth->execute($nick);
+     my @curr_game = $sth->fetchrow_array;
      $sth->finish;
-     my ( $player, $dealer ) = map { deal( $_, 2 ) } ( [], [] );
-
-     while ( prompt( "$nick: @$player\nHit? ", '-tyn1' ) ) {
-         if ( value( deal( $player, 1 ) ) > 21 ) {
-             show( "Busted!", $player );
-             return;
-         }
+     # @curr_game structure
+     # [0] BJKey
+     # [1] TwitchID
+     # [2] Shoe
+     # [3] Hand
+     # [4] Dealer
+     # [5] Bet
+     # [6] TTL
+     my $CardsInShoe = length($curr_game[2])/2;
+     if ($CardsInShoe < 104) {
+          newshoe($nick,$arg);
+          $irc->yield(privmsg => $where, "/me - $nick, shuffling a new shoe!");
+          $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
+          $sth->execute($nick);
+          @curr_game = $sth->fetchrow_array;
+          $sth->finish;
      }
-     while ( say("Dealer @$dealer") && value($dealer) < 17 ) {
-          show( "Dealer busted!", $dealer ) && exit
-          if value( deal( $dealer, 1 ) ) > 21;
+     if ($curr_game[3]) {
+          # There is a current valid game.
+          $irc->yield(privmsg => $where, "/me - $nick, you have a current game running.");          
+     } else {
+          # Deal a new hand.
+          $irc->yield(privmsg => $where, "/me - New hand starting for $nick.");          
+          deal($nick,$curr_game[2],$arg);
+          $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
+          $sth->execute($nick);
+          @curr_game = $sth->fetchrow_array;
+          $sth->finish;
+          if (valuehand($curr_game[3]) == 21 || valuehand($curr_game[4]) == 21) {
+               $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
+               return;
+          }
      }
-     value($player) >= value($dealer)
-          ? show( "Player wins", $player )
-          : show( "Dealer wins", $dealer );
+     $irc->yield(privmsg => $where, "/me - ".show_game($nick,0));
+     return;
 }
 
-sub deal {
-    my $shoe;
-    state $shoe = [
-        shuffle map {
-            my $c = $_;
-            map { "$c$_" } qw(H D C S)
-        } ( 2 .. 10, qw( J Q K A ) ) x 6
-    ];
-    push $_[0], shift $shoe for ( 1 .. $_[1] );
-    $_[0];
+sub irc_botcmd_hit {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $where = $_[ARG1];
+     return if &tw_stream_online($where);
+     return if (!is_owner($nick));
+     my $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
+     $sth->execute($nick);
+     my @curr_game = $sth->fetchrow_array;
+     $sth->finish;
+     if (!$curr_game[3]) {
+          $irc->yield(privmsg => $where, "/me - $nick, you do not have a current game!");
+          return;
+     }
+     $curr_game[3] = givecard($nick,$curr_game[2],$curr_game[3]);
+     my $value = valuehand($curr_game[3]);
+     if ($value > 21) {
+          $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
+     } else {
+          $irc->yield(privmsg => $where, "/me - ".show_game($nick,0));
+     }
+     return;
 }
 
-sub value {
-    my $v;
-    for ( local @_ = @{ shift() } ) {
-        s/[ H D C S ]//;
-        s/[JQK]/10/;
-        $v < 11 ? s/A/11/ : s/A/1/;
-        $v += $_;
-    }
-    $v;
+sub irc_botcmd_stand {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $where = $_[ARG1];
+     return if &tw_stream_online($where);
+     return if (!is_owner($nick));
+     $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
 }
-
+     
+sub timelimit {
+     my $where = $_[0];
+     my $nick = $_[1];
+     my $threshold = $_[2];
+     my $duration = $_[3];
+     if ($duration < $threshold) {
+          if ($threshold == 60) {
+              $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minute.");
+              return false;
+          } else {
+              $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minutes. To unlock playing more often and other perks, consider subscribing here on Twitch, or supporting the channel on patreon.com/rushlock");
+              return false;
+          }
+     }
+     return true;
+}
 
 sub tw_stream_online {
      my $channelname = $_[0];
