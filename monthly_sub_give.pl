@@ -6,6 +6,7 @@ use Config::Simple;
 use DBI;
 use Log::Log4perl;
 use POSIX qw(strftime);
+use Switch;
 
 my $cfg = new Config::Simple('/opt/evepriceinfo/epi.conf'); 
 my $DBName = $cfg->param("DBName");
@@ -36,12 +37,22 @@ $ref = $sth->fetchall_hashref('TwitchName');
 $sth->finish;
 $logger->info("Starting monthly Subscriber perk scan");
 foreach my $key (keys $ref ) {
+   my $grant=0;
    my @SubDate = split(/-/,$ref->{$key}{SubDate});
    if ($today eq $SubDate[2]) {
-      $sth = $dbh->prepare('CALL AddTokens(200,?)');
-      $sth->execute($key);
+      switch ($ref->{$key}{SubLevel}) {
+         case [1]    {$grant = 40}
+         case [3]    {$grant = 120}
+         case [5]    {$grant = 200}
+         case [10]   {$grant = 400}
+         case [25]   {$grant = 1000}
+         case [50]   {$grant = 2000}
+         case [100]  {$grant = 4000}
+      }
+      $sth = $dbh->prepare('CALL AddTokens(?,?)');
+      $sth->execute($grant,$key);
       $sth->finish;
-      $tokenlogger->info("Subscriber perk: added 200 tokens to $key balance");
+      $tokenlogger->info("Subscriber perk: added $grant tokens to $key balance");
    }
 }
 $logger->info("Ending monthly Subscriber perk scan");

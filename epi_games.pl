@@ -19,7 +19,7 @@ use Switch;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
 use EPIUser qw(is_subscriber is_authorized is_owner);
-use EPIBlackJack qw(newshoe deal show_game givecard valuehand eval_game);
+use EPIBlackJack qw(newshoe deal show_game givecard valuehand eval_game get_curr_game);
 
 use constant {
      true	=> 1,
@@ -56,7 +56,7 @@ my %help = ();
 
 push(@cmds,'_start');
 $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
-$sth->execute('game');
+$sth->execute('games');
 $ref = $sth->fetchall_hashref('CmdKey');
 foreach ( keys %$ref ) {
      push(@cmds,"irc_botcmd_".$ref->{$_}->{'Command'});
@@ -257,7 +257,6 @@ sub irc_botcmd_deal {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      return if &tw_stream_online($where);
-#     return if (!is_owner($nick));
      if (!$arg) {
           $irc->yield(privmsg => $where, "/me - BlackJack, use 1 to 25 tokens.");
           return;
@@ -304,10 +303,7 @@ sub irc_botcmd_deal {
      }
      token_take("evepriceinfo",$arg,$nick);
      my $shoe;
-     my $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
-     $sth->execute($nick);
-     my @curr_game = $sth->fetchrow_array;
-     $sth->finish;
+     my @curr_game = get_curr_game($nick);
      # @curr_game structure
      # [0] BJKey
      # [1] TwitchID
@@ -320,10 +316,7 @@ sub irc_botcmd_deal {
      if ($CardsInShoe < 104) {
           newshoe($nick,$arg);
           $irc->yield(privmsg => $where, "/me - $nick, shuffling a new shoe!");
-          $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
-          $sth->execute($nick);
-          @curr_game = $sth->fetchrow_array;
-          $sth->finish;
+          @curr_game = get_curr_game($nick);
      }
      if ($curr_game[3]) {
           # There is a current valid game.
@@ -332,10 +325,7 @@ sub irc_botcmd_deal {
           # Deal a new hand.
           $irc->yield(privmsg => $where, "/me - New hand starting for $nick.");          
           deal($nick,$curr_game[2],$arg);
-          $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
-          $sth->execute($nick);
-          @curr_game = $sth->fetchrow_array;
-          $sth->finish;
+          @curr_game = get_curr_game($nick);
           if (valuehand($curr_game[3]) == 21 || valuehand($curr_game[4]) == 21) {
                $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
                return;
@@ -349,11 +339,7 @@ sub irc_botcmd_hit {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
      return if &tw_stream_online($where);
-     return if (!is_owner($nick));
-     my $sth = $dbh->prepare('SELECT * FROM BJGame WHERE TwitchID = ?');
-     $sth->execute($nick);
-     my @curr_game = $sth->fetchrow_array;
-     $sth->finish;
+     my @curr_game = get_curr_game($nick);
      if (!$curr_game[3]) {
           $irc->yield(privmsg => $where, "/me - $nick, you do not have a current game!");
           return;
@@ -372,15 +358,49 @@ sub irc_botcmd_stand {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
      return if &tw_stream_online($where);
-     return if (!is_owner($nick));
+     my @curr_game = get_curr_game($nick);
+     if (!$curr_game[3]) {
+          $irc->yield(privmsg => $where, "/me - $nick, you do not have a current game!");
+          return;
+     }
      $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
+     return;
 }
-     
+
+sub irc_botcmd_doubledown {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $where = $_[ARG1];
+     return if &tw_stream_online($where);
+     my @curr_game = get_curr_game($nick);
+     if (!$curr_game[3]) {
+          $irc->yield(privmsg => $where, "/me - $nick, you do not have a current game!");
+          return;
+     }
+     my $max = $dbh->selectrow_array("SELECT Tokens FROM followers WHERE TwitchID = \"$nick\"");
+     if ($curr_game[5] > $max) {
+          $irc->yield(privmsg => $where, "/me - $nick, you do not have $curr_game[5] tokens to double down with!");
+          return;
+     }
+     if (length($curr_game[3]) == 4) {
+          token_take("evepriceinfo",$curr_game[5],$nick);
+          $curr_game[5] = $curr_game[5] + $curr_game[5];
+          my $sth = $dbh->prepare('UPDATE BJGame SET Bet = ?, TTL = NULL WHERE TwitchID = ?');
+          $sth->execute($curr_game[5],$nick);
+          $sth->finish;
+          $curr_game[3] = givecard($nick,$curr_game[2],$curr_game[3]);
+          $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
+     } else {
+          $irc->yield(privmsg => $where, "/me - You can only double down on your first two cards.")
+     }
+     return;
+}
+
 sub timelimit {
      my $where = $_[0];
      my $nick = $_[1];
      my $threshold = $_[2];
      my $duration = $_[3];
+     return true if is_owner($nick);
      if ($duration < $threshold) {
           if ($threshold == 60) {
               $irc->yield(privmsg => $where, "/me - $nick, you can only play once every ".($threshold/60)." minute.");

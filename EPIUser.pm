@@ -73,18 +73,20 @@ sub is_authorized {
 }
 
 sub is_owner {
-     my ($nick,$user) = @_;
+     my $nick = $_[0];
      my $result;
-     my $sth = $dbh->prepare('SELECT * FROM AuthorizedUsers WHERE TwitchID LIKE ?');
-     $sth->execute($user);
+     my $sth = $dbh->prepare('SELECT * FROM AuthorizedUsers WHERE TwitchID LIKE ? AND Owner = 1');
+     $sth->execute($nick);
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
           $result = false;
-          $logger->debug("$user is not an owner.")
+          $logger->debug("$nick is not an owner.")
      } else {
           $result = $ref->{'Owner'};
-          $logger->debug("$user is an owner.")
+          $logger->debug("$nick is an owner.")
      }
      $sth->finish;
      return $result;         
 }
+
+1;

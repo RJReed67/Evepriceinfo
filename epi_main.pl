@@ -13,6 +13,8 @@ use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 use Proc::Simple;
 use sigtrap qw/handler shutdown normal-signals/;
+use lib "/opt/evepriceinfo";
+use EPIUser qw(is_subscriber is_authorized is_owner);
 
 use constant {
      true	=> 1,
@@ -180,9 +182,7 @@ sub irc_botcmd_reload {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$// if ($arg);
-     if ($nick !~ /rushlock|rjreed67/) {
-          return;
-     }
+     return if !is_owner($nick);
      my $modsloaded="";
      for (my $count = 1; $count < @subproc; $count++) {
           $modsloaded = $modsloaded.$subname[$count]." " if $subactive[$count];
@@ -214,9 +214,7 @@ sub irc_botcmd_activate {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$// if ($arg);
-     if ($nick !~ /rushlock|rjreed67/) {
-          return;
-     }
+     return if !is_owner($nick);
      my $modsunloaded="";
      for (my $count = 1; $count < @subproc; $count++) {
           $modsunloaded = $modsunloaded.$subname[$count]." " if !$subactive[$count];
@@ -248,9 +246,7 @@ sub irc_botcmd_unload {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$// if ($arg);
-     if ($nick !~ /rushlock|rjreed67/) {
-          return;
-     }
+     return if !is_owner($nick);
      my $modsloaded="";
      for (my $count = 1; $count < @subproc; $count++) {
           $modsloaded = $modsloaded.$subname[$count]." " if $subactive[$count];
@@ -264,7 +260,7 @@ sub irc_botcmd_unload {
           if ( $modsloaded =~ /$arg/ ) {
                for (my $count = 1; $count < @subproc; $count++) {
                     if ($subname[$count] =~ $arg) {
-                         $logger->info("$nick is starting module $subname[$count]");
+                         $logger->info("$nick is unloading module $subname[$count]");
                          $status[$count] = $subproc[$count]->kill();
                          $subactive[$count] = false;
                          $irc->yield(privmsg => $where, "/me - $arg has been unloaded.");
@@ -305,24 +301,31 @@ sub help {
           $sth = $dbh->prepare('SELECT HelpInfo FROM epi_commands WHERE Command like ?');
           $sth->execute($arg);
           my @row = $sth->fetchrow_array;
-          $irc->yield(privmsg => $where, "/me - Description: $row[0]");
+          $irc->yield(privmsg => $where, "/me - Description: $row[0]") if $row[0];
           $sth->finish;
      } else {
           my %helpmsg = ();
           my $msg = "";
-          $sth = $dbh->prepare('SELECT * FROM epi_commands ORDER BY Command ASC');
-          $sth->execute;
-          $ref = $sth->fetchall_hashref('CmdKey');
-          foreach ( keys %$ref ) {
-               if ($ref->{$_}->{'CmdType'} eq 'info' || $ref->{$_}->{'CmdType'} eq 'custom') {
-                    $msg = $msg.$ref->{$_}->{'Command'}.", ";
-                    $helpmsg{$ref->{$_}->{'Command'}}=$ref->{$_}->{'HelpInfo'};
+          for (my $count = 1; $count < @subproc; $count++) {
+               my $msg = "";
+               if ($subactive[$count]) {
+                    $msg = $msg.ucfirst($subname[$count])." Commands: ";
+                    $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ? ORDER BY Command ASC');
+                    $sth->execute($subname[$count]);
+                    $ref = $sth->fetchall_hashref('CmdKey');
+                    foreach ( keys %$ref ) {
+                         if ($ref->{$_}->{'CmdType'} eq 'info' || $ref->{$_}->{'CmdType'} eq 'custom') {
+                              $msg = $msg.$ref->{$_}->{'Command'}.", ";
+                              $helpmsg{$ref->{$_}->{'Command'}}=$ref->{$_}->{'HelpInfo'};
+                         }
+                    }
+                    $sth->finish;
+                    $msg =~ s/,\s$/\./;
+                    $irc->yield(privmsg => $where, "/me - $msg");
                }
           }
-          $sth->finish;
-          $msg =~ s/,$/\./;
-          $irc->yield(privmsg => $where, "/me - Commands: $msg");
           $irc->yield(privmsg => $where, "/me - For more details, use: !help <command>");
+          $sth->finish;
      }
      return;
 }
