@@ -89,7 +89,7 @@ sub show_game {
      foreach my $card (@playerhand) {
           $gamemsg = $gamemsg.$card." ";
      }
-     $gamemsg = $gamemsg."Dealer: ";
+     $gamemsg = $gamemsg."(".valuehand($curr_game[3]).") "."Dealer: ";
      my $i;
      for ($i = 0; $i <= $#dealerhand; $i++) {
           if ($i == $#dealerhand && $holdcard == 0) {
@@ -97,6 +97,9 @@ sub show_game {
           } else {
                $gamemsg = $gamemsg.$dealerhand[$i]." ";
           }
+     }
+     if ($holdcard != 0) {
+          $gamemsg = $gamemsg."(".valuehand($curr_game[4]).") ";
      }
      return $gamemsg;
 }

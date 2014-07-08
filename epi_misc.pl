@@ -17,7 +17,7 @@ use POE::Component::IRC::Plugin::Connector;
 use Switch;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
-use EPIUser qw(is_owner);
+use EPIUser qw(is_owner is_subscriber);
 
 use constant {
      true	=> 1,
@@ -294,6 +294,60 @@ sub irc_botcmd_tweet {
      my $tweet = $dbh->selectrow_array('SELECT Tweet FROM TwitterInfo');
      $irc->yield(privmsg => $where, "/me - Latest Tweet from Rushlock: $tweet");
      return;
+}
+
+sub irc_botcmd_que {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     my $sth;
+     my $user;
+     if (is_owner($nick)) {
+          if ($arg =~ /clear/) {
+               $sth = $dbh->prepare('TRUNCATE GameQueue');
+               $sth->execute;
+               $irc->yield(privmsg => $where, "/me - Player Queue Cleared.");
+          }
+          if ($arg =~ /pull/) {
+               $user = $dbh->selectrow_array("SELECT TwitchID FROM GameQueue ORDER BY QueTime LIMIT 1");
+               if (!$user) {
+                    $irc->yield(privmsg => $where, "/me - No one wants to play!");
+               } else {
+                    $sth = $dbh->prepare('DELETE IGNORE FROM GameQueue WHERE TwitchID = ?');
+                    $sth->execute($user);
+                    $sth->finish;
+                    $irc->yield(privmsg => $where, "/me - Next on the Queue is: $user, time to play!");
+               }
+          }
+          if ($arg =~ /list/) {
+               my $sth = $dbh->prepare('SELECT TwitchID FROM GameQueue ORDER BY QueTime ASC LIMIT 10');
+               $sth->execute();
+               $irc->yield(privmsg => $where, "/me - The Players in the queue, in order are: (Up to 10)");
+               my $rank = 0;
+               while (my @row = $sth->fetchrow_array) {
+                    $rank = $rank + 1;
+                    $irc->yield(privmsg => $where, "/me - $rank: $row[0]");
+               }
+               if ($rank == 0) {
+                    $irc->yield(privmsg => $where, "/me - No one in the queue.");                    
+               }
+               $sth->finish;
+          }
+     }
+     if (is_subscriber($nick)) {
+          if (!$arg) {
+               # Add Nick to queue, if it isn't there already.
+               $user = $dbh->selectrow_array("SELECT TwitchID FROM GameQueue ORDER BY QueTime LIMIT 1");
+               if ($user =~ /$nick/) {
+                    $irc->yield(privmsg => $where, "/me - $user, your name is already in the queue.");
+               } else {
+                    $sth = $dbh->prepare('INSERT IGNORE INTO GameQueue SET TwitchID=?, QueTime=Null');
+                    $sth->execute($nick);
+                    $irc->yield(privmsg => $where, "/me - $nick has been added to Player Queue.");
+               }
+          }
+     } else {
+          $irc->yield(privmsg => $where, "/me - Must be a Sub/Patreon to add your name to the Player Queue.");
+     }
 }
 
 sub tw_stream_online {
