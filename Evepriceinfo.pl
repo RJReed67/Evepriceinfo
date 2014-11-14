@@ -27,9 +27,9 @@ use AnyEvent::Twitter::Stream;
 use Net::Twitter::Lite::WithAPIv1_1;
 use Scalar::Util 'blessed';
 use FileHandle;
-use POE::Component::Server::HTTP;
-use HTTP::Status;
-use CGI qw(:standard);
+#use POE::Component::Server::HTTP;
+#use HTTP::Status;
+#use CGI qw(:standard);
 
 use constant {
      true	=> 1,
@@ -172,58 +172,58 @@ $sth = $dbh->prepare('TRUNCATE killcache');
 $sth->execute;
 $sth->finish;
 
-my $httpd = POE::Component::Server::HTTP->new(
-     Port => 8000,
-     ContentHandler => {
-          '/'      => \&handler,
-     },
-     Headers => { Server => 'EvePriceInfo' },
-);
+#my $httpd = POE::Component::Server::HTTP->new(
+#     Port => 8000,
+#     ContentHandler => {
+#          '/'      => \&handler,
+#     },
+#     Headers => { Server => 'EvePriceInfo' },
+#);
 
-sub handler {
-     my ($kernel, $heap) = @_[KERNEL ,HEAP];
-     my ($request, $response) = @_;
-     $response->code(RC_OK);
-     my $q;
-     if ($request->method() eq 'POST') {
-          $q = new CGI($request->content);
-     } else {
-          $request->uri() =~ /\?(.+$)/;
-          if (defined($1)) {
-               $q = new CGI($1);
-          } else {
-               $q = new CGI;
-          }
-     }
-     my $content = start_html("EvePriceInfo Command");
-     if ($request->method() eq 'POST') {
-          for ($q->param("cmd")) {
-               if (/^!token /) { $content .= "token".br() }
-               if (/^!plex /) { $content .= "plex".br() }
-               if (/^!pc /) { $content .= "pc".br() }
-               if (/^!pca /) { $content .= "pca".br() }
-               if (/^!hpc /) { $content .= "hpc".br() }
-               if (/^!rpc /) { $content .= "rpc".br() }
-               if (/^!ice /) { $content .= "ice".br() }
-               if (/^!news/) { $content .= "news".br() }
-               if (/^!yield /) { $content .= "yield".br() }
-               if (/^!zkb /) { $content .= "zkb".br() }
-          }
-     }
-     $content .= start_form(
-     -method  => "post",
-     -action  => "/",
-     -enctype => "applications/x-www-form-urlencoded",
-     )
-     . "EvePriceInfo Cmd: "
-     . textfield("cmd")
-     . br()
-     . submit("submit", "submit")
-     . end_form()
-     . end_html();
-     $response->content($content);
-     return RC_OK;
-}
+#sub handler {
+#     my ($kernel, $heap) = @_[KERNEL ,HEAP];
+#     my ($request, $response) = @_;
+#     $response->code(RC_OK);
+#     my $q;
+#     if ($request->method() eq 'POST') {
+#          $q = new CGI($request->content);
+#     } else {
+#          $request->uri() =~ /\?(.+$)/;
+#          if (defined($1)) {
+#               $q = new CGI($1);
+#          } else {
+#               $q = new CGI;
+#          }
+#     }
+#     my $content = start_html("EvePriceInfo Command");
+#     if ($request->method() eq 'POST') {
+#          for ($q->param("cmd")) {
+#               if (/^!token /) { $content .= "token".br() }
+#               if (/^!plex /) { $content .= "plex".br() }
+#               if (/^!pc /) { $content .= "pc".br() }
+#               if (/^!pca /) { $content .= "pca".br() }
+#               if (/^!hpc /) { $content .= "hpc".br() }
+#               if (/^!rpc /) { $content .= "rpc".br() }
+#               if (/^!ice /) { $content .= "ice".br() }
+#               if (/^!news/) { $content .= "news".br() }
+#               if (/^!yield /) { $content .= "yield".br() }
+#               if (/^!zkb /) { $content .= "zkb".br() }
+#          }
+#     }
+#     $content .= start_form(
+#     -method  => "post",
+#     -action  => "/",
+#     -enctype => "applications/x-www-form-urlencoded",
+#     )
+#     . "EvePriceInfo Cmd: "
+#     . textfield("cmd")
+#     . br()
+#     . submit("submit", "submit")
+#     . end_form()
+#     . end_html();
+#     $response->content($content);
+#     return RC_OK;
+#}
 
 my $nt = Net::Twitter::Lite::WithAPIv1_1->new(
      consumer_key    => $consumer_key,
@@ -262,8 +262,8 @@ my $listener = AnyEvent::Twitter::Stream->new(
     on_tweet        => sub { 
        my $tweet = shift;
        if ($tweet->{text}) {
-          my $text = $tweet->{text};
-          $text->{text} =~ s/[^\x00-\x7f]//g;
+#          my $text = $tweet->{text};
+#          $text->{text} =~ s/[^\x00-\x7f]//g;
           $irc->yield(privmsg => $_, "Tweet from \@$tweet->{user}{screen_name}: $tweet->{text}") for @channels;
        }
     },

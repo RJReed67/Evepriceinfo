@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 use Config::Simple;
+use DateTime;
+use DateTime::Format::MySQL;
 use POE;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
@@ -170,7 +172,7 @@ sub irc_botcmd_wg500 {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$//;
-     if (is_authorized($where,$nick)) {
+     if (is_authorized($nick)) {
           if ($arg) {
                $irc->yield(privmsg => $where, "/me - All isk from loot/salvage/ore gathered during the week, will be added to the weekly drawing. 500 Token req to be entered automatically. You do not need to be present to win. Drawing is done on Sunday of each week.");
           } else {
@@ -202,13 +204,13 @@ sub irc_botcmd_wg500 {
 sub irc_botcmd_give {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
-     if (!is_authorized($where,$nick)) {
+     if (!is_authorized($nick)) {
           return;
      }
      $arg =~ s/\s+$//;
      $logger->info("Give function called by: $nick, with Args: $arg");
      if (!$arg) {
-          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, open # Title, timed #mins #tokenreq Title.");
+          $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, fix, history, open # Title, timed #mins #tokenreq Title.");
           return;
      } elsif ($arg =~ /^open/) {
           if ($giveaway_open == 1) {
@@ -294,6 +296,20 @@ sub irc_botcmd_give {
           while (my @row = $sth->fetchrow_array) {
                $irc->yield(privmsg => $where, "/me - $row[5] : $row[6], won $row[1].");
           }
+     } elsif ($arg =~ /^last/) {
+          my $sth = $dbh->prepare('SELECT StartDate FROM giveaway WHERE GiveTitle="50 Tokens" ORDER BY GiveKey DESC LIMIT 1');
+          $sth->execute;
+          while (my @row = $sth->fetchrow_array) {
+               my $now = DateTime::Format::MySQL->format_datetime(DateTime->now);
+               my @times = map Time::Piece->strptime(/(\d.+)/, '%Y-%m-%d %H:%M:%S'), $row[0], $now;
+               my $delta = $times[1] - $times[0];
+               my $output = $delta->pretty;
+               $irc->yield(privmsg => $where, "/me - The last automatic giveaway was $output ago.");
+          }
+     } elsif ($arg =~ /^fix/) {
+          my $sth = $dbh->prepare('UPDATE giveaway SET AutoGive=0 WHERE AutoGive=1');
+          $sth->execute;
+          $irc->yield(privmsg => $where, "/me - The Giveaway DB has been updated.");          
      } else {
           $irc->yield(privmsg => $where, "/me - Not a valid give command. Valid commands are close, draw, history, open # Title, timed #mins #tokenreq Title.");
      }
@@ -304,7 +320,7 @@ sub irc_botcmd_give {
 sub irc_botcmd_tgw {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
-     if (!is_authorized($where,$nick)) {
+     if (!is_authorized($nick)) {
           return;
      }
      if ($giveaway_open == true) {
@@ -354,7 +370,7 @@ sub irc_botcmd_t1sgw {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$//;
-     if (!is_authorized($where,$nick)) {
+     if (!is_authorized($nick)) {
           return;
      }
      $logger->info("Tech 1 ship Giveaway called by $nick with Args: $arg");
@@ -383,7 +399,7 @@ sub irc_botcmd_t1sgw {
 sub irc_botcmd_top10 {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
-     if (!$irc->is_channel_operator($where,$nick)) {
+     if (!is_authorized($nick)) {
           return;
      }
      my $sth = $dbh->prepare('SELECT TwitchID,Tokens FROM followers ORDER BY Tokens DESC LIMIT 10');

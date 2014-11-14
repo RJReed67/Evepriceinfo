@@ -223,6 +223,8 @@ sub irc_botcmd_tip {
           }
           $sth = $dbh->prepare('Update TipJar SET TotalTokens = 0');
           $sth->execute or die "Error: ".$sth->errstr;
+          $sth = $dbh->prepare('TRUNCATE TipTime');
+          $sth->execute or die "Error: ".$sth->errstr;
           $sth->finish;
      }
      return;
@@ -306,6 +308,8 @@ sub irc_botcmd_que {
                $sth = $dbh->prepare('TRUNCATE GameQueue');
                $sth->execute;
                $irc->yield(privmsg => $where, "/me - Player Queue Cleared.");
+               $sth->finish;
+               return;
           }
           if ($arg =~ /pull/) {
                $user = $dbh->selectrow_array("SELECT TwitchID FROM GameQueue ORDER BY QueTime LIMIT 1");
@@ -317,6 +321,7 @@ sub irc_botcmd_que {
                     $sth->finish;
                     $irc->yield(privmsg => $where, "/me - Next on the Queue is: $user, time to play!");
                }
+               return;
           }
           if ($arg =~ /list/) {
                my $sth = $dbh->prepare('SELECT TwitchID FROM GameQueue ORDER BY QueTime ASC LIMIT 10');
@@ -331,6 +336,7 @@ sub irc_botcmd_que {
                     $irc->yield(privmsg => $where, "/me - No one in the queue.");                    
                }
                $sth->finish;
+               return;
           }
      }
      if (is_subscriber($nick)) {
@@ -346,8 +352,27 @@ sub irc_botcmd_que {
                }
           }
      } else {
-          $irc->yield(privmsg => $where, "/me - Must be a Sub/Patreon to add your name to the Player Queue.");
+          if ($arg =~ /100/) {
+               # Add Nick to queue, if the user has enough tokens.
+               my $max = $dbh->selectrow_array("SELECT Tokens FROM followers WHERE TwitchID = \"$nick\"");
+               if ($arg > $max) {
+                    $irc->yield(privmsg => $where, "/me - $nick, you do not have 100 tokens to enter the queue!");
+                    return;
+               }
+               $user = $dbh->selectrow_array("SELECT TwitchID FROM GameQueue ORDER BY QueTime LIMIT 1");
+               if ($user =~ /$nick/) {
+                    $irc->yield(privmsg => $where, "/me - $user, your name is already in the queue.");
+               } else {
+                    my $result = token_take("evepriceinfo",$arg,$nick);
+                    $sth = $dbh->prepare('INSERT IGNORE INTO GameQueue SET TwitchID=?, QueTime=Null');
+                    $sth->execute($nick);
+                    $irc->yield(privmsg => $where, "/me - $nick has been added to Player Queue.");
+               }
+          } else {
+               $irc->yield(privmsg => $where, "/me - $nick you are not a Sub/Patreon. To add your name to the Player Queue takes 100 tokens. Use !que 100 to get on the Player Queue.");
+          }
      }
+     return;
 }
 
 sub tw_stream_online {

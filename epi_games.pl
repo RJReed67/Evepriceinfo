@@ -138,7 +138,7 @@ sub irc_botcmd_slot {
      } else {
           $duration = 301;
      }
-     my $sublevel = is_subscriber($where,$nick);
+     my $sublevel = is_subscriber($nick);
      my $threshold = 300;
      switch ($sublevel) {
           case [1..100]    {$threshold=60}
@@ -348,7 +348,9 @@ sub irc_botcmd_hit {
      my $value = valuehand($curr_game[3]);
      if ($value > 21) {
           $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
-     } else {
+     } elsif ($value == 21) {
+          $irc->yield(privmsg => $where, "/me - ".eval_game($nick));
+     }else {
           $irc->yield(privmsg => $where, "/me - ".show_game($nick,0));
      }
      return;

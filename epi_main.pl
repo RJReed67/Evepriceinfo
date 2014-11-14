@@ -149,7 +149,7 @@ sub tick {
 sub irc_botcmd_botstats {
      my $nick = (split /!/, $_[ARG0])[0];
      my $where = $_[ARG1];
-     if (!$irc->is_channel_operator($where,$nick)) {
+     if (!is_owner($nick)) {
           return;
      }
      my $sth = $dbh->prepare('SELECT COUNT(*) FROM followers');
@@ -169,7 +169,7 @@ sub irc_botcmd_setnews {
      $arg =~ s/\s+$//;
      my $dt = DateTime->now;
      $arg = $dt->strftime("%b %d, %Y").": ".$arg;
-     if ($irc->is_channel_operator($where,$nick)) {
+     if (is_authorized($nick)) {
           $arg =~ s/^\!\w//;
           my $sth = $dbh->prepare('UPDATE epi_info_cmds SET DisplayInfo=? WHERE CmdName LIKE ?');
           $sth->execute($arg,'news');

@@ -269,7 +269,7 @@ sub irc_public {
      if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
           my @subuser = split(' ',$msg);
           $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
-          my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?, SubLeve = ?');
+          my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?, SubLevel = ?');
           my $subdate = Time::Piece->new->strftime('%Y-%m-%d');
           $sth->execute($subuser[0],$subdate,5);
           $sth->finish;
@@ -295,7 +295,7 @@ sub irc_botcmd_add {
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$// if $arg ne '';
      my ($change, $user) = split(' ', $arg, 2);
-     if ($irc->is_channel_operator($where,$nick)) {
+     if (is_authorized($nick)) {
           my $sth;
           if ($user eq "evepriceinfo") {
                $sth = $dbh->prepare('SELECT Winner, GiveKey FROM giveaway WHERE AutoGive = 1 ORDER BY GiveKey LIMIT 1');
@@ -330,7 +330,7 @@ sub irc_botcmd_take {
      my ($where, $arg) = @_[ARG1, ARG2];
      $arg =~ s/\s+$//;
      my ($change, $user) = split(' ', $arg, 2);
-     if ($irc->is_channel_operator($where,$nick)) {
+     if (is_authorized($nick)) {
           my $logtime = Time::Piece->new->strftime('%m/%d/%Y %H:%M:%S');
           $tokenlogger->info("$nick subtracted $change tokens from $user balance");
           my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
@@ -391,12 +391,9 @@ sub irc_botcmd_token {
                     $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
                }
           } elsif (!&tw_is_subscriber($nick)) {
-               my $sth = $dbh->prepare('SELECT * FROM epi_info_cmds WHERE CmdName LIKE ?');
-               $sth->execute("sub");
-               my $ref = $sth->fetchrow_hashref();
-               $irc->yield(privmsg => $where, "/me - $ref->{'DisplayInfo'}");
+               $irc->yield(privmsg => $where, "/me - Use !token when the stream is offline :)");
           }
-     }
+    }
      $sth->finish;
      return;
 }

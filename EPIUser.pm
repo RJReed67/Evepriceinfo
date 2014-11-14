@@ -39,7 +39,7 @@ my $logger = Log::Log4perl->get_logger;
 # returns the subscriber's subscription level.
 
 sub is_subscriber {
-     my ($nick,$user) = @_;
+     my $user = $_[0];
      my $result;
      my $sth = $dbh->prepare('SELECT * FROM Rushlock_TwitchSubs WHERE TwitchName LIKE ?');
      $sth->execute($user);
@@ -56,7 +56,7 @@ sub is_subscriber {
 }
 
 sub is_authorized {
-     my ($nick,$user) = @_;
+     my $user = $_[0];
      my $result;
      my $sth = $dbh->prepare('SELECT * FROM AuthorizedUsers WHERE TwitchID LIKE ?');
      $sth->execute($user);
