@@ -300,7 +300,7 @@ sub irc_botcmd_give {
           my $sth = $dbh->prepare('SELECT StartDate FROM giveaway WHERE GiveTitle="50 Tokens" ORDER BY GiveKey DESC LIMIT 1');
           $sth->execute;
           while (my @row = $sth->fetchrow_array) {
-               my $now = DateTime::Format::MySQL->format_datetime(DateTime->now);
+               my $now = DateTime::Format::MySQL->format_datetime(DateTime->now(time_zone=>"local"));
                my @times = map Time::Piece->strptime(/(\d.+)/, '%Y-%m-%d %H:%M:%S'), $row[0], $now;
                my $delta = $times[1] - $times[0];
                my $output = $delta->pretty;
