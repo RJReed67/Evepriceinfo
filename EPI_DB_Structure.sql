@@ -111,7 +111,7 @@ CREATE TABLE `Rushlock_TwitchSubs` (
   `SubLevel` int(11) NOT NULL DEFAULT '5',
   `SubDate` date NOT NULL,
   PRIMARY KEY (`SubKey`)
-) ENGINE=MyISAM AUTO_INCREMENT=357 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=383 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -223,7 +223,7 @@ CREATE TABLE `TwitterInfo` (
   `Count` int(11) NOT NULL AUTO_INCREMENT,
   `Tweet` varchar(200) NOT NULL,
   PRIMARY KEY (`Count`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -271,7 +271,7 @@ CREATE TABLE `epi_commands` (
   `CycleTime` int(11) NOT NULL DEFAULT '0',
   `NumOfChatLines` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`CmdKey`)
-) ENGINE=MyISAM AUTO_INCREMENT=124 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=125 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -314,7 +314,7 @@ CREATE TABLE `followers` (
   `TTL` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`UserKey`),
   KEY `TwitchID` (`TwitchID`)
-) ENGINE=InnoDB AUTO_INCREMENT=44586 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=46551 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -333,7 +333,7 @@ CREATE TABLE `giveaway` (
   `EndDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `Winner` varchar(50) NOT NULL,
   PRIMARY KEY (`GiveKey`)
-) ENGINE=InnoDB AUTO_INCREMENT=3197 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=3676 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -489,7 +489,7 @@ CREATE TABLE `token_log` (
   KEY `log_date_idx` (`log_date`),
   KEY `log_source_idx` (`log_source`),
   KEY `log_mesg_idx` (`log_mesg`)
-) ENGINE=MyISAM AUTO_INCREMENT=600105 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=696766 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -501,4 +501,4 @@ CREATE TABLE `token_log` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-11-14  0:05:02
+-- Dump completed on 2014-12-14  0:05:02

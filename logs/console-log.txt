@@ -1,0 +1,111 @@
+05/19/2014 20:53:38: _child:  'create' 'POE::Session=ARRAY(0x3be51d0)' '' 
+05/19/2014 20:53:38: irc_registered:  'POE::Component::IRC::State=HASH(0x3a35360)' 
+05/19/2014 20:53:38: irc_connected:  '198.46.152.49' 
+05/19/2014 20:53:38: irc_raw_out:  'CAP REQ :identify-msg' 
+05/19/2014 20:53:38: irc_raw_out:  'CAP REQ :multi-prefix' 
+05/19/2014 20:53:38: irc_raw_out:  'CAP LS' 
+05/19/2014 20:53:38: irc_raw_out:  'CAP END' 
+05/19/2014 20:53:38: irc_raw_out:  'PASS Starfl33t67' 
+05/19/2014 20:53:38: irc_raw:  ':irc.znc.in CAP unknown-nick NAK :identify-msg' 
+05/19/2014 20:53:38: irc_cap:  'NAK' 'identify-msg' 
+05/19/2014 20:53:38: irc_raw:  ':irc.znc.in CAP unknown-nick ACK :multi-prefix' 
+05/19/2014 20:53:38: irc_cap:  'ACK' 'multi-prefix' 
+05/19/2014 20:53:38: irc_raw:  ':irc.znc.in CAP unknown-nick LS :userhost-in-names multi-prefix znc.in/server-time' 
+05/19/2014 20:53:38: irc_cap:  'LS' 'userhost-in-names multi-prefix znc.in/server-time' 
+05/19/2014 20:53:39: irc_raw_out:  'NICK evepriceinfo' 
+05/19/2014 20:53:41: irc_raw_out:  'USER evepriceinfo 8 * :root' 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 001 evepriceinfo :Welcome, GLHF!' 
+05/19/2014 20:53:41: irc_bot_public:  [#rushlock] '/color blue' 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 002 evepriceinfo :Your host is tmi.twitch.tv' 
+05/19/2014 20:53:41: irc_002:  'tmi.twitch.tv' 'Your host is tmi.twitch.tv' [Your host is tmi.twitch.tv] 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 003 evepriceinfo :This server is rather new' 
+05/19/2014 20:53:41: irc_003:  'tmi.twitch.tv' 'This server is rather new' [This server is rather new] 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 004 evepriceinfo :-' 
+05/19/2014 20:53:41: irc_004:  'tmi.twitch.tv' '-' [-] 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 375 evepriceinfo :-' 
+05/19/2014 20:53:41: irc_375:  'tmi.twitch.tv' '-' [-] 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 372 evepriceinfo :You are in a maze of twisty passages, all alike.' 
+05/19/2014 20:53:41: irc_372:  'tmi.twitch.tv' 'You are in a maze of twisty passages, all alike.' [You are in a maze of twisty passages, all alike.] 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 376 evepriceinfo :>' 
+05/19/2014 20:53:41: irc_376:  'tmi.twitch.tv' '>' [>] 
+05/19/2014 20:53:41: irc_raw:  ':evepriceinfo JOIN :#rushlock' 
+05/19/2014 20:53:41: evepriceinfo has joined the channel.
+evepriceinfo in followers table.
+evepriceinfo was last seen 2014-05-19 20:49:43.
+evepriceinfo was gone more than one minute.
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 353 evepriceinfo = #rushlock :5r8drara alientarot @aritani attckcat balancept @belannaer braingkk bullettes celemourn chaos2peace clemsytwitch crckdns daagr daddygamble darquee diabolus_miles digitalta dman1990m @dyneslott @evepriceinfo fah_king fireman17 gindack gingeralejones godztiger gorsey hemdroid i_scr34m incifan itzakk @jacinto1569 jeracotiii laime_angel lakilla21 madthunder mandraik @moobot mupits mysticerf noobpownin09 ocsiever orma_ p_e_z_z phaos72 pointydome rayman86' 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 353 evepriceinfo = #rushlock :@razreaper89 reconhaze @rjreed67 @rushlock shadowxk sharrot shasz soulztealer svpernova09 swiffadustbuster tervycb thekayo therealcrowen todencognito treyin waterkiwi whykk wyohusker @ysfanatic zedarion zeshinosa' 
+05/19/2014 20:53:41: irc_raw:  ':tmi.twitch.tv 366 evepriceinfo #rushlock :End of /NAMES list.' 
+05/19/2014 20:53:41: irc_366:  'tmi.twitch.tv' '#rushlock :End of /NAMES list.' [#rushlock, End of /NAMES list.] 
+05/19/2014 20:53:41: irc_plugin_error:  'S_join call on plugin 'Logger' failed: Use of uninitialized value $user in concatenation (.) or string at /usr/local/lib/perl5/site_perl/5.18.1/POE/Component/IRC/Plugin/Logger.pm line 206, <FH> line 4.' 
+05/19/2014 20:53:42: irc_raw:  ':chaos2peace!chaos2peace@chaos2peace.tmi.twitch.tv PART #rushlock' 
+05/19/2014 20:53:42: chaos2peace has left the channel.
+05/19/2014 20:53:43: irc_raw_out:  'MODE evepriceinfo' 
+05/19/2014 20:53:46: irc_raw_out:  'JOIN #rushlock ' 
+05/19/2014 20:53:46: irc_raw:  ':evepriceinfo!evepriceinfo@evepriceinfo.tmi.twitch.tv JOIN #rushlock' 
+05/19/2014 20:53:46: evepriceinfo has joined the channel.
+evepriceinfo in followers table.
+evepriceinfo was last seen 2014-05-19 20:53:41.
+evepriceinfo was gone less than one minute.
+05/19/2014 20:53:46: irc_raw:  ':jtv!jtv@jtv.tmi.twitch.tv PRIVMSG evepriceinfo :USERCOLOR evepriceinfo #0000FF' 
+05/19/2014 20:53:46: irc_msg:  'jtv!jtv@jtv.tmi.twitch.tv' [evepriceinfo] 'USERCOLOR evepriceinfo #0000FF' 
+05/19/2014 20:53:46: irc_raw:  ':jtv!jtv@jtv.tmi.twitch.tv PRIVMSG evepriceinfo :HISTORYEND rushlock' 
+05/19/2014 20:53:46: irc_msg:  'jtv!jtv@jtv.tmi.twitch.tv' [evepriceinfo] 'HISTORYEND rushlock' 
+05/19/2014 20:53:46: irc_raw:  ':evepriceinfo.tmi.twitch.tv 353 evepriceinfo = #rushlock :shadowxk gingeralejones phaos72 dyneslott belannaer reconhaze mupits daddygamble celemourn svpernova09 attckcat balancept incifan godztiger gindack darquee lakilla21 evepriceinfo rushlock zedarion noobpownin09 thekayo rjreed67 dman1990m jacinto1569 mandraik whykk jeracotiii daagr soulztealer digitalta fah_king 5r8drara moobot diabolus_miles treyin mysticerf braingkk therealcrowen shasz aritani laime_angel waterkiwi orma_' 
+05/19/2014 20:53:46: irc_raw:  ':evepriceinfo.tmi.twitch.tv 353 evepriceinfo = #rushlock :itzakk hemdroid rayman86 sharrot razreaper89 fireman17 crckdns ocsiever tervycb gorsey madthunder clemsytwitch zeshinosa ysfanatic bullettes wyohusker alientarot todencognito p_e_z_z i_scr34m swiffadustbuster pointydome' 
+05/19/2014 20:53:46: irc_raw:  ':evepriceinfo.tmi.twitch.tv 366 evepriceinfo #rushlock :End of /NAMES list' 
+05/19/2014 20:53:46: irc_366:  'evepriceinfo.tmi.twitch.tv' '#rushlock :End of /NAMES list' [#rushlock, End of /NAMES list] 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o rjreed67' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'rjreed67' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'rjreed67' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o ysfanatic' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'ysfanatic' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'ysfanatic' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o moobot' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'moobot' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'moobot' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o jacinto1569' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'jacinto1569' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'jacinto1569' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o evepriceinfo' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'evepriceinfo' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'evepriceinfo' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o aritani' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'aritani' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'aritani' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o rushlock' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'rushlock' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'rushlock' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o dyneslott' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'dyneslott' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'dyneslott' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o razreaper89' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'razreaper89' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'razreaper89' 
+05/19/2014 20:53:46: irc_raw:  ':jtv MODE #rushlock +o belannaer' 
+05/19/2014 20:53:46: irc_mode:  'jtv' '#rushlock' '+o' 'belannaer' 
+05/19/2014 20:53:46: irc_chan_mode:  'jtv' '#rushlock' '+o' 'belannaer' 
+05/19/2014 20:53:48: irc_raw_out:  'WHO #rushlock' 
+05/19/2014 20:53:48: irc_raw:  ':tmi.twitch.tv 421 evepriceinfo WHO :Unknown command' 
+05/19/2014 20:53:48: irc_421:  'tmi.twitch.tv' 'WHO :Unknown command' [WHO, Unknown command] 
+05/19/2014 20:53:50: irc_raw_out:  'MODE #rushlock' 
+05/19/2014 20:53:52: irc_raw_out:  'MODE #rushlock b' 
+05/19/2014 20:53:54: irc_raw_out:  'WHO #rushlock' 
+05/19/2014 20:53:54: irc_raw:  ':tmi.twitch.tv 421 evepriceinfo WHO :Unknown command' 
+05/19/2014 20:53:54: irc_421:  'tmi.twitch.tv' 'WHO :Unknown command' [WHO, Unknown command] 
+05/19/2014 20:53:56: irc_raw_out:  'MODE #rushlock' 
+05/19/2014 20:53:58: irc_raw_out:  'MODE #rushlock b' 
+05/19/2014 20:54:00: irc_raw_out:  'PRIVMSG #rushlock :/color blue' 
+05/19/2014 20:54:00: irc_raw:  ':jtv!jtv@jtv.tmi.twitch.tv PRIVMSG evepriceinfo :USERCOLOR evepriceinfo #0000FF' 
+05/19/2014 20:54:00: irc_msg:  'jtv!jtv@jtv.tmi.twitch.tv' [evepriceinfo] 'USERCOLOR evepriceinfo #0000FF' 
+05/19/2014 20:54:00: irc_raw:  ':jtv!jtv@jtv.tmi.twitch.tv PRIVMSG evepriceinfo :Your color has been changed' 
+05/19/2014 20:54:00: irc_msg:  'jtv!jtv@jtv.tmi.twitch.tv' [evepriceinfo] 'Your color has been changed' 
+05/19/2014 20:54:20: irc_raw:  ':daddygamble!daddygamble@daddygamble.tmi.twitch.tv PART #rushlock' 
+05/19/2014 20:54:20: daddygamble has left the channel.
+05/19/2014 20:54:24: irc_raw:  ':rjreed67!rjreed67@rjreed67.tmi.twitch.tv PRIVMSG #rushlock :!reload' 
+pco counter: 1 - 1
+amazon counter: 1 - 1
+evetrial counter: 1 - 1
+twitter counter: 1 - 1
+05/19/2014 20:54:24: irc_bot_public:  [#rushlock] '/me - Values Updated.' 
+05/19/2014 20:54:24: irc_raw_out:  'PRIVMSG #rushlock :/me - Values Updated.' 

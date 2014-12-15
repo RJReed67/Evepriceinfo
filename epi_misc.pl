@@ -216,9 +216,9 @@ sub irc_botcmd_tip {
           my $give_amt = int($tips/2);
           my $result = token_add("evepriceinfo",$give_amt,$nick);
           if ($result) {
-               $irc->yield(privmsg => $where, "$give_amt tokens given to $nick!");
+               $irc->yield(privmsg => $where, "/me - $give_amt tokens given to $nick!");
           } else {
-               $irc->yield(privmsg => $where, "Could not give tokens! Alert rjreed67!");
+               $irc->yield(privmsg => $where, "/me - Could not give tokens! Alert rjreed67!");
                return;
           }
           $sth = $dbh->prepare('Update TipJar SET TotalTokens = 0');
@@ -363,13 +363,13 @@ sub irc_botcmd_que {
                if ($user =~ /$nick/) {
                     $irc->yield(privmsg => $where, "/me - $user, your name is already in the queue.");
                } else {
-                    my $result = token_take("evepriceinfo",$arg,$nick);
+                    # my $result = token_take("evepriceinfo",$arg,$nick);
                     $sth = $dbh->prepare('INSERT IGNORE INTO GameQueue SET TwitchID=?, QueTime=Null');
                     $sth->execute($nick);
                     $irc->yield(privmsg => $where, "/me - $nick has been added to Player Queue.");
                }
           } else {
-               $irc->yield(privmsg => $where, "/me - $nick you are not a Sub/Patreon. To add your name to the Player Queue takes 100 tokens. Use !que 100 to get on the Player Queue.");
+               $irc->yield(privmsg => $where, "/me - $nick you are not a Sub/Patreon. To add your name to the Player Queue, you must have 100 tokens. Use !que 100 to get on the Player Queue.");
           }
      }
      return;
