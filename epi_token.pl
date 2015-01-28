@@ -63,6 +63,7 @@ my $install_dir = $ref->{'install_dir'}->{'value'};
 my $token_exclude = $ref->{'token_exclude'}->{'value'};
 my $token_give = $ref->{'token_give'}->{'value'};
 my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
+my $offline_token_grant = $ref->{'offline_token_grant'}->{'value'};
 
 $sth->finish;
 
@@ -154,7 +155,7 @@ sub tick {
           $logger->debug("Offline Tick number:$offline_timer");
           if ($offline_timer > 3) {
                $offline_timer = 0;
-               &offline_token_time("\#rushlock");
+               &offline_token_time("\#rushlock") if $offline_token_grant;
           }
           $offline_timer = $offline_timer + 1;
      }
@@ -170,6 +171,7 @@ sub offline_token_time {
      $sth->finish;
      foreach ( @$row ) {
           next if $_->[0] =~ m/$token_exclude/i;
+          next if !&tw_is_subscriber($_->[0]);
           $sth = $dbh->prepare('SELECT TwitchID, Tokens, TTL FROM followers WHERE TwitchID LIKE ?');
           $sth->execute($_->[0]);
           my @row2=$sth->fetchrow_array();
@@ -368,7 +370,7 @@ sub irc_botcmd_token {
                if (&tw_stream_online) {
                     $irc->yield(privmsg => $where, "/me - Unlock !token while we are online and other perks by subscribing here on Twitch or supporting via patreon.com/rushlock");
                } else {
-                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live and 1 token every hour while offline! Giveaways will require, but not take, tokens to enter.");
+                    $irc->yield(privmsg => $where, "/me - Viewers will earn 1 token every 15 minutes in channel while live! Giveaways will require, but not take, tokens to enter.");
                }
           }
      } else {
