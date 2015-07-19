@@ -28,7 +28,7 @@ use Time::Piece::MySQL;
 use Data::Dumper;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
-use EPIUser qw(is_subscriber is_authorized is_owner);
+use EPIUser qw(is_subscriber is_authorized is_owner is_oper);
 
 use constant {
      true	=> 1,
@@ -55,6 +55,7 @@ my $debug = $ref->{'debug'}->{'value'};
 my @channels = $ref->{'channel'}->{'value'};
 my $tw_following = $ref->{'tw_following'}->{'value'};
 my $tw_online = $ref->{'twitch_online_url'}->{'value'};
+my $tw_chat_info = $ref->{'twitch_chat_user'}->{'value'};
 my $tw_follow = $ref->{'tw_follow'}->{'value'};
 my $tw_pwd = $ref->{'tw_pwd'}->{'value'};;
 my $interval = $ref->{'interval'}->{'value'};
@@ -91,9 +92,9 @@ my %help = ();
 
 push(@cmds,'_start');
 push(@cmds,'irc_public');
-push(@cmds,'irc_part');
-push(@cmds,'irc_join');
-push(@cmds,'irc_353');
+#push(@cmds,'irc_part');
+#push(@cmds,'irc_join');
+#push(@cmds,'irc_353');
 push(@cmds,'tick');
 push(@cmds,'check');
 $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
@@ -133,6 +134,7 @@ sub _start {
      ));
      $irc->yield(register => qw(all));
      $irc->yield(connect => { } );
+     &tw_update_chat("\#rushlock");
      return;
 }
 
@@ -148,6 +150,7 @@ sub tick {
      $heap->{next_alarm_time}=int(time())+$interval;
      $kernel->alarm(tick => $heap->{next_alarm_time});
      $logger->debug("timer tick");
+     &tw_update_chat("\#rushlock");
      if (&tw_stream_online("\#rushlock")) {
           $logger->debug("Online Tick");
           &online_token_time("\#rushlock");
@@ -239,58 +242,100 @@ sub online_token_time {
      return;
 }
 
-sub irc_join {
-     my $nick = (split /!/, $_[ARG0])[0];
-     $logger->debug("$nick has joined the channel.");
-     my $sth = $dbh->prepare('INSERT IGNORE INTO rushlock_online_viewers SET TwitchID = ?');
-     $sth->execute($nick);
+sub tw_update_chat {
+     my $stream = $_[0];
+     $stream =~ s/#//g;
+     $logger->debug("Clearing online viewer list for $stream.");
+     my $sth = $dbh->prepare('TRUNCATE rushlock_online_viewers');
+     $sth->execute;
      $sth->finish;
-     $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
-     $sth->execute($nick);
-     my $ref = $sth->fetchrow_hashref();
-     if (!$ref) {
-          $logger->debug("$nick not in followers table.");
-          $sth = $dbh->prepare('INSERT INTO followers SET TwitchID = ?, Tokens = 0');
+     $logger->debug("Updating the online viewer list for $stream.");
+     my $url = $tw_chat_info;
+     my $result = decode_json(get($url));
+     foreach my $nick (@{$result->{'chatters'}{'viewers'}}) {
+          $logger->debug("Inserting $nick in online viewer list for $stream.");
+          $sth = $dbh->prepare('INSERT IGNORE INTO rushlock_online_viewers SET TwitchID = ?');
           $sth->execute($nick);
           $sth->finish;
-     } else {
-          $logger->debug("$nick in followers table.");
+          $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+          $sth->execute($nick);
+          my $ref = $sth->fetchrow_hashref();
+          if (!$ref) {
+               $logger->debug("$nick not in followers table.");
+               $sth = $dbh->prepare('INSERT INTO followers SET TwitchID = ?, Tokens = 0');
+               $sth->execute($nick);
+               $sth->finish;
+          } else {
+               $logger->debug("$nick in followers table.");
+          }                    
      }
+     foreach my $nick (@{$result->{'chatters'}{'moderators'}}) {
+          $sth = $dbh->prepare('INSERT IGNORE INTO rushlock_online_viewers SET TwitchID = ?');
+          $logger->debug("Inserting $nick in online viewer list for $stream.");
+          $sth->execute($nick);
+          $sth->finish;
+          $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+          $sth->execute($nick);
+     }
+     return;
 }
 
-sub irc_part {
-     my $nick = (split /!/, $_[ARG0])[0];
-     $logger->debug("$nick has left the channel.");
-     my $sth = $dbh->prepare('DELETE FROM rushlock_online_viewers WHERE TwitchID = ?');
-     $sth->execute($nick);
-}
+#sub irc_join {
+#     my $nick = (split /!/, $_[ARG0])[0];
+#     $logger->debug("$nick has joined the channel.");
+#     my $sth = $dbh->prepare('INSERT IGNORE INTO rushlock_online_viewers SET TwitchID = ?');
+#     $sth->execute($nick);
+#     $sth->finish;
+#     $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
+#     $sth->execute($nick);
+#     my $ref = $sth->fetchrow_hashref();
+#     if (!$ref) {
+#          $logger->debug("$nick not in followers table.");
+#          $sth = $dbh->prepare('INSERT INTO followers SET TwitchID = ?, Tokens = 0');
+#          $sth->execute($nick);
+#          $sth->finish;
+#     } else {
+#          $logger->debug("$nick in followers table.");
+#     }
+#}
+
+#sub irc_part {
+#     my $nick = (split /!/, $_[ARG0])[0];
+#     $logger->debug("$nick has left the channel.");
+#     my $sth = $dbh->prepare('DELETE FROM rushlock_online_viewers WHERE TwitchID = ?');
+#     $sth->execute($nick);
+#}
 
 sub irc_public {
      my $nick = (split /!/, $_[ARG0])[0];
      my $msg = $_[ARG2];
-     if ($nick =~ m/twitchnotify/ && $msg =~ m/just subscribed/) {
+     if ($nick =~ m/twitchnotify/) {
           my @subuser = split(' ',$msg);
-          $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
-          my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?, SubLevel = ?');
-          my $subdate = Time::Piece->new->strftime('%Y-%m-%d');
-          $sth->execute($subuser[0],$subdate,5);
-          $sth->finish;
-          $logger->info("$subuser[0] subscribed to the channel.");
+          if ($msg =~ m/just subscribed \d+ months in a row!/) {
+              $irc->yield(privmsg => $_, "/me - Thank you $subuser[0] for supporting this channel!") for @channels;
+          } elsif ($msg =~ m/just subscribed\!/) {
+              $irc->yield(privmsg => $_, "/me - New Subscriber: $subuser[0]. Welcome to the channel.") for @channels;
+              my $sth = $dbh->prepare('INSERT INTO Rushlock_TwitchSubs SET TwitchName = ?, SubDate = ?, SubLevel = ?');
+              my $subdate = Time::Piece->new->strftime('%Y-%m-%d');
+              $sth->execute($subuser[0],$subdate,5);
+              $sth->finish;
+              $logger->info("$subuser[0] subscribed to the channel.");
+          }
      }
 }
 
-sub irc_353 {
-     my $line = $_[ARG1];
-     $line =~ s/^\= \#rushlock //g;
-     $line =~ s/\@//g;
-     $line =~ s/^\://g;
-     my @names = split(" ",$line);
-     foreach my $user (@names) {
-          my $sth = $dbh->prepare('INSERT IGNORE INTO rushlock_online_viewers SET TwitchID = ?');
-          $sth->execute($user);
-     }
-     return;
-}
+#sub irc_353 {
+#     my $line = $_[ARG1];
+#     $line =~ s/^\= \#rushlock //g;
+#     $line =~ s/\@//g;
+#     $line =~ s/^\://g;
+#     my @names = split(" ",$line);
+#     foreach my $user (@names) {
+#          my $sth = $dbh->prepare('INSERT IGNORE INTO rushlock_online_viewers SET TwitchID = ?');
+#          $sth->execute($user);
+#     }
+#     return;
+#}
  
 sub irc_botcmd_add {
      my $nick = (split /!/, $_[ARG0])[0];
@@ -356,8 +401,9 @@ sub irc_botcmd_token {
      my $nick = (split /!/, $_[ARG0])[0];
      my ($where, $arg) = @_[ARG1, ARG2];
      my ($kernel, $self) = @_[KERNEL, OBJECT];
+     $arg =~ s/\s+$// if $arg;
      if ($arg) {
-          if ($irc->is_channel_operator($where,$nick) && $arg ne "?") {
+          if ((is_oper($nick) || is_authorized($nick)) && $arg ne "?") {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
                $sth->execute($arg);
                my $ref = $sth->fetchrow_hashref();
@@ -383,7 +429,7 @@ sub irc_botcmd_token {
                } else {
                     $irc->yield(privmsg => $where, "/me - $nick has $ref->{'Tokens'} tokens.");
                }
-          } elsif ( &tw_is_subscriber($nick) ) {
+          } elsif ( &tw_is_subscriber($nick) || is_authorized($nick) ) {
                my $sth = $dbh->prepare('SELECT * FROM followers WHERE TwitchID LIKE ?');
                $sth->execute($nick);
                my $ref = $sth->fetchrow_hashref();

@@ -4,7 +4,9 @@ use strict;
 use warnings;
 use Config::Simple;
 use DBI;
+use JSON;
 use Log::Log4perl;
+use LWP::Simple qw(!head);
 use Data::Dumper;
 
 use constant {
@@ -13,7 +15,7 @@ use constant {
 };
 
 use Exporter qw(import);
-our @EXPORT_OK = qw(is_subscriber is_authorized is_owner);
+our @EXPORT_OK = qw(is_subscriber is_authorized is_owner is_oper);
 
 my $cfg = new Config::Simple('/opt/evepriceinfo/epi.conf');
 my $DBName = $cfg->param("DBName");
@@ -30,6 +32,7 @@ my $ref = $sth->fetchall_hashref('setting');
 my $debug = $ref->{'debug'}->{'value'};
 my $install_dir = $ref->{'install_dir'}->{'value'};
 my $log_conf = $install_dir.$ref->{'log_conf'}->{'value'};
+my $tw_chat_info = $ref->{'twitch_chat_user'}->{'value'};
 $sth->finish;
 
 Log::Log4perl::init_and_watch($log_conf,60);
@@ -46,10 +49,10 @@ sub is_subscriber {
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
           $result = false;
-          $logger->debug("$user is not a subscriber.")
+          $logger->debug("$user is not a subscriber.");
      } else {
           $result = $ref->{'SubLevel'};
-          $logger->debug("$user is a subscriber with a level of $result.")
+          $logger->debug("$user is a subscriber with a level of $result.");
      }
      $sth->finish;
      return $result;
@@ -63,10 +66,10 @@ sub is_authorized {
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
           $result = false;
-          $logger->debug("$user is not authorized.")
+          $logger->debug("$user is not authorized.");
      } else {
           $result = true;
-          $logger->debug("$user is authorized.")
+          $logger->debug("$user is authorized.");
      }
      $sth->finish;
      return $result;    
@@ -80,13 +83,31 @@ sub is_owner {
      my $ref = $sth->fetchrow_hashref();
      if (!$ref) {
           $result = false;
-          $logger->debug("$nick is not an owner.")
+          $logger->debug("$nick is not an owner.");
      } else {
           $result = $ref->{'Owner'};
-          $logger->debug("$nick is an owner.")
+          $logger->debug("$nick is an owner.");
      }
      $sth->finish;
      return $result;         
+}
+
+sub is_oper {
+     my $nick = $_[0];
+     my $result = 0;
+     my $url = $tw_chat_info;
+     my $webcall = decode_json(get($url));
+     foreach my $mod (@{$webcall->{'chatters'}{'moderators'}}) {
+          last if ($result == 1);
+          if ($nick =~ /$mod/) {
+               $logger->debug("$nick is a moderator.");
+               $result = 1;
+          } else {
+               $logger->debug("$nick is not a moderator.");
+               $result = 0;               
+          }
+     }
+     return $result;
 }
 
 1;

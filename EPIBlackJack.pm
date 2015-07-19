@@ -150,7 +150,12 @@ sub eval_game {
      } else {
           $gamemsg = show_game($player,1)." ".$player." Lost!";
      }
-     token_add("evepriceinfo",$winnings,$player) if $winnings > 0;
+     if ($winnings > 0) {
+          token_add("evepriceinfo",$winnings,$player);
+          $sth = $dbh->prepare('UPDATE TokenStats SET BJTokensOut = BJTokensOut + ? WHERE StatDate = current_date');
+          $sth->execute($winnings);
+          $sth->finish;
+     }
      $sth = $dbh->prepare('UPDATE BJGame SET Hand = NULL, Dealer = NULL, Bet = NULL, TTL = NULL WHERE TwitchID = ?');
      $sth->execute($player);
      $sth->finish;

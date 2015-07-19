@@ -150,6 +150,9 @@ sub irc_botcmd_slot {
      $sth->execute($nick);
      $sth->finish;
      token_take("evepriceinfo",$arg,$nick);
+     $sth = $dbh->prepare('UPDATE TokenStats SET SlotTokensIn = SlotTokensIn + ? WHERE StatDate = current_date');
+     $sth->execute($arg);
+     $sth->finish;
      my @wheel1 = ([';P',':)','R)',':(',';P',';)','<3',':(','B)',';)','R)',':P',':O','O_o','R)',':D',':O',':z','<3',':(','B)',';)'],
                    [ 1,   4,   6,   7,   9,   16,  20,  21,  25,  28,  30,  31,  33,  39,   41,  42,  44,  52,  56,  57,  61,  64],
                    [ 3,   5,   6,   8,   15,  19,  20,  24,  27,  29,  30,  32,  38,  40,   41,  43,  51,  55,  56,  60,  63,  64],
@@ -248,6 +251,9 @@ sub irc_botcmd_slot {
           }
           $msg = $msg." Winner! $nick has won $prize tokens!";
           token_add("evepriceinfo",$prize,$nick);
+          $sth = $dbh->prepare('UPDATE TokenStats SET SlotTokensOut = SlotTokensOut + ? WHERE StatDate = current_date');
+          $sth->execute($prize);
+          $sth->finish;
      }
      $irc->yield(privmsg => $where, "$msg");
      return;
@@ -302,6 +308,9 @@ sub irc_botcmd_deal {
           return;
      }
      token_take("evepriceinfo",$arg,$nick);
+     $sth = $dbh->prepare('UPDATE TokenStats SET BJTokensIn = BJTokensIn + ? WHERE StatDate = current_date');
+     $sth->execute($arg);
+     $sth->finish;
      my $shoe;
      my @curr_game = get_curr_game($nick);
      # @curr_game structure
@@ -385,6 +394,9 @@ sub irc_botcmd_doubledown {
      }
      if (length($curr_game[3]) == 4) {
           token_take("evepriceinfo",$curr_game[5],$nick);
+          $sth = $dbh->prepare('UPDATE TokenStats SET BJTokensIn = BJTokensIn + ? WHERE StatDate = current_date');
+          $sth->execute($curr_game[5]);
+          $sth->finish;
           $curr_game[5] = $curr_game[5] + $curr_game[5];
           my $sth = $dbh->prepare('UPDATE BJGame SET Bet = ?, TTL = NULL WHERE TwitchID = ?');
           $sth->execute($curr_game[5],$nick);

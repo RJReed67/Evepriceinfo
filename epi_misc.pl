@@ -9,12 +9,15 @@ use DateTime::Duration;
 use DateTime::Format::MySQL;
 use DateTime::Format::DateParse;
 use DBI;
+use Getopt::Long;
+use IO::Socket;
 use Log::Log4perl;
 use POE;
 use POE::Component::IRC::State;
 use POE::Component::IRC::Plugin::BotCommand;
 use POE::Component::IRC::Plugin::Connector;
 use Switch;
+use Text::Wrap;
 use lib "/opt/evepriceinfo";
 use Token qw(token_add token_take);
 use EPIUser qw(is_owner is_subscriber);
@@ -197,6 +200,9 @@ sub irc_botcmd_tip {
           $irc->yield(privmsg => $where, "Could not get tokens! Alert rjreed67!");
           return;
      }
+     $sth = $dbh->prepare('UPDATE TokenStats SET TippedTokensIn = TippedTokensIn + ? WHERE StatDate = current_date');
+     $sth->execute($arg);
+     $sth->finish;
      $tips = $tips + $arg;
      $sth = $dbh->prepare('UPDATE TipJar SET TotalTokens = ?');
      $sth->execute($tips) or die "Error: ".$sth->errstr;
@@ -221,6 +227,9 @@ sub irc_botcmd_tip {
                $irc->yield(privmsg => $where, "/me - Could not give tokens! Alert rjreed67!");
                return;
           }
+          $sth = $dbh->prepare('UPDATE TokenStats SET TippedTokensOut = TippedTokensOut + ? WHERE StatDate = current_date');
+          $sth->execute($give_amt);
+          $sth->finish;
           $sth = $dbh->prepare('Update TipJar SET TotalTokens = 0');
           $sth->execute or die "Error: ".$sth->errstr;
           $sth = $dbh->prepare('TRUNCATE TipTime');
@@ -256,6 +265,16 @@ sub irc_botcmd_bacon {
                 'More than half of all homes (53%) keep bacon on hand at all times');
      $irc->yield(privmsg => $where, "/me - $msg[rand(@msg)%@msg]");
      return;
+}
+
+sub irc_botcmd_hug {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $user) = @_[ARG1, ARG2];
+     if (!$user) {
+          $irc->yield(privmsg => $where, "/me gives $nick a hug.");
+     } else {
+          $irc->yield(privmsg => $where, "/me gives $user a hug.");          
+     }
 }
 
 sub irc_botcmd_auth {
@@ -296,6 +315,43 @@ sub irc_botcmd_tweet {
      my $tweet = $dbh->selectrow_array('SELECT Tweet FROM TwitterInfo');
      $irc->yield(privmsg => $where, "/me - Latest Tweet from Rushlock: $tweet");
      return;
+}
+
+sub parse_stat_data(@) {
+        my $packet_data=$_[0];
+        my @split_temp = split "\x00", $packet_data;
+        my @player_count=split "|", substr($packet_data, 10, 2);
+        my @player_levels=split "|", substr($packet_data, 8, 2);
+        my $module_name=substr($packet_data, 20, length($packet_data)-20);
+
+        $player_count[0]=unpack("C*", $player_count[0]);
+        $player_count[1]=unpack("C*", $player_count[1]);
+        $player_levels[0]=unpack("C*", $player_levels[0]);
+        $player_levels[1]=unpack("C*", $player_levels[1]);
+
+        my @stat_data=($player_levels[0],$player_levels[1],$player_count[0],$player_count[1],$module_name);
+        return @stat_data;
+}
+
+sub irc_botcmd_nwnstatus {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+
+     my $host = 'nwn.ronreedconsulting.com';
+     my $port = 5121;
+     my $message;
+
+     my $client = new IO::Socket::INET(Proto => 'udp', Timeout => "5");
+     if (!$client) {
+        $irc->yield(privmsg => $where, "/me - Server is Down.");
+        return;
+     } else {
+        my $serveraddr = sockaddr_in($port, inet_aton($host));
+        $client->send("\x42\x4E\x58\x49\x00\x14", 0, $serveraddr);
+        $client->recv($message, 1500, 0);
+        my @SStats=parse_stat_data($message);
+        $irc->yield(privmsg => $where, "/me - Server is Up, Players: $SStats[2] / $SStats[3]");
+     }
 }
 
 sub irc_botcmd_que {

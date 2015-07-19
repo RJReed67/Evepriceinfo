@@ -14,7 +14,7 @@ use POE::Component::IRC::Plugin::Connector;
 use Proc::Simple;
 use sigtrap qw/handler shutdown normal-signals/;
 use lib "/opt/evepriceinfo";
-use EPIUser qw(is_subscriber is_authorized is_owner);
+use EPIUser qw(is_subscriber is_authorized is_owner is_oper);
 
 use constant {
      true	=> 1,
@@ -86,6 +86,7 @@ my $irc = POE::Component::IRC::State->spawn(
         Username => $twitch_user,
         Password => $twitch_pwd,
         Debug => $debug,
+        Raw => 1,
 ) or die "Error: $!";
 
 POE::Session->create(
@@ -102,7 +103,9 @@ sub _start {
      $heap->{connector} = POE::Component::IRC::Plugin::Connector->new();
      $irc->plugin_add('Connector' => $heap->{connector} );
      $heap->{next_alarm_time} = int(time()) + 60;
+     $heap->{color_reset_time} = int(time()) + 300;
      $kernel->alarm(tick => $heap->{next_alarm_time});
+     $kernel->alarm(color_set => $heap->{color_reset_time});
      $irc->plugin_add('BotCommand', POE::Component::IRC::Plugin::BotCommand->new(
         Addressed => 0,
         Prefix => '!',
@@ -124,8 +127,9 @@ sub _start {
 }
 
 sub irc_001 {
+     $irc->yield(privmsg => $_, '/raw CAP REQ :twitch.tv/membership');
      $irc->yield(join => $_) for @channels;
-     $irc->yield(privmsg => $_, '/color blue') for @channels;
+     $irc->yield(privmsg => $_, '/color Blue') for @channels;
      return;
 }
 
@@ -144,6 +148,15 @@ sub tick {
           }
      }
      return;
+}
+
+sub color_set {
+     my ($kernel,$heap) = @_[KERNEL,HEAP];
+     $heap->{color_reset_time}=int(time())+300;
+     $kernel->alarm(color_set => $heap->{color_reset_time});
+     $logger->debug("Reset text color");
+     $irc->yield(privmsg => $_, '/color Blue') for @channels;
+     return;     
 }
 
 sub irc_botcmd_botstats {
