@@ -67,6 +67,48 @@ CREATE TABLE `GameQueue` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `Match`
+--
+
+DROP TABLE IF EXISTS `Match`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `Match` (
+  `MatchID` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `MatchTime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `NumOfSides` tinyint(11) NOT NULL,
+  `A` varchar(100) NOT NULL,
+  `B` varchar(100) NOT NULL,
+  `C` varchar(100) DEFAULT NULL,
+  `D` varchar(100) DEFAULT NULL,
+  `E` varchar(100) DEFAULT NULL,
+  `F` varchar(100) DEFAULT NULL,
+  `MatchWinner` varchar(200) DEFAULT NULL,
+  `TotalPool` int(11) DEFAULT NULL,
+  `Rake` int(11) DEFAULT NULL,
+  PRIMARY KEY (`MatchID`)
+) ENGINE=MyISAM AUTO_INCREMENT=163 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `MatchWagers`
+--
+
+DROP TABLE IF EXISTS `MatchWagers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `MatchWagers` (
+  `WagerID` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `MatchID` bigint(20) unsigned NOT NULL,
+  `TwitchID` varchar(40) NOT NULL,
+  `WagerOnWho` varchar(200) NOT NULL,
+  `WagerAmt` int(11) NOT NULL,
+  `Odds` float DEFAULT NULL,
+  PRIMARY KEY (`WagerID`)
+) ENGINE=MyISAM AUTO_INCREMENT=1710 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `PatreonLevels`
 --
 
@@ -94,7 +136,7 @@ CREATE TABLE `ProcStatus` (
   `ProcFile` varchar(20) NOT NULL,
   `Active` int(11) NOT NULL DEFAULT '1',
   PRIMARY KEY (`ProcKey`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -111,7 +153,7 @@ CREATE TABLE `Rushlock_TwitchSubs` (
   `SubLevel` int(11) NOT NULL DEFAULT '5',
   `SubDate` date NOT NULL,
   PRIMARY KEY (`SubKey`)
-) ENGINE=MyISAM AUTO_INCREMENT=383 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=614 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -199,6 +241,29 @@ CREATE TABLE `TipTime` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `TokenStats`
+--
+
+DROP TABLE IF EXISTS `TokenStats`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `TokenStats` (
+  `StatKey` int(11) NOT NULL AUTO_INCREMENT,
+  `StatDate` date NOT NULL,
+  `TotalTokens` bigint(20) unsigned NOT NULL,
+  `RakedTokens` int(11) unsigned NOT NULL DEFAULT '0',
+  `MatchTokens` int(11) unsigned NOT NULL DEFAULT '0',
+  `TippedTokensIn` int(11) unsigned NOT NULL DEFAULT '0',
+  `TippedTokensOut` int(10) unsigned NOT NULL DEFAULT '0',
+  `BJTokensIn` int(11) unsigned NOT NULL DEFAULT '0',
+  `BJTokensOut` int(10) unsigned NOT NULL DEFAULT '0',
+  `SlotTokensIn` int(11) unsigned NOT NULL DEFAULT '0',
+  `SlotTokensOut` int(10) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`StatKey`)
+) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `TwitterID2TwitchID`
 --
 
@@ -223,7 +288,7 @@ CREATE TABLE `TwitterInfo` (
   `Count` int(11) NOT NULL AUTO_INCREMENT,
   `Tweet` varchar(200) NOT NULL,
   PRIMARY KEY (`Count`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -271,7 +336,7 @@ CREATE TABLE `epi_commands` (
   `CycleTime` int(11) NOT NULL DEFAULT '0',
   `NumOfChatLines` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`CmdKey`)
-) ENGINE=MyISAM AUTO_INCREMENT=125 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=134 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -314,7 +379,7 @@ CREATE TABLE `followers` (
   `TTL` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`UserKey`),
   KEY `TwitchID` (`TwitchID`)
-) ENGINE=InnoDB AUTO_INCREMENT=46551 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=65959 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -333,7 +398,7 @@ CREATE TABLE `giveaway` (
   `EndDate` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `Winner` varchar(50) NOT NULL,
   PRIMARY KEY (`GiveKey`)
-) ENGINE=InnoDB AUTO_INCREMENT=3676 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=6767 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -489,7 +554,7 @@ CREATE TABLE `token_log` (
   KEY `log_date_idx` (`log_date`),
   KEY `log_source_idx` (`log_source`),
   KEY `log_mesg_idx` (`log_mesg`)
-) ENGINE=MyISAM AUTO_INCREMENT=696766 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=1276681 DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -501,4 +566,4 @@ CREATE TABLE `token_log` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2014-12-14  0:05:02
+-- Dump completed on 2015-07-18  0:05:01
