@@ -69,14 +69,18 @@ if ($count == 0) {
           $match_open = 0;
      }
 }
+my $poll_open = false;
 
 my @teamname = ("A","B","C","D","E","F");
- 
+my @itemname = ("A","B","C","D","E","F","G","H","I","J");
+my $countstr = "ABCDEFGHIJ";
+
 my @cmds = ();
 my %help = ();
 
 push(@cmds,'_start');
 push(@cmds,'irc_botcmd_matchclose');
+push(@cmds,'irc_botcmd_pollclose');
 $sth = $dbh->prepare('SELECT * FROM epi_commands WHERE CmdModule like ?');
 $sth->execute('wwematch');
 $ref = $sth->fetchall_hashref('CmdKey');
@@ -211,7 +215,14 @@ sub irc_botcmd_wager {
           $irc->yield(privmsg => $where, "/me - $nick, The wager must be in the format !wager #ofTokens Side");
           return;
      }
+     my ($numberofsides) = $dbh->selectrow_array('SELECT NumOfSides FROM `Match` ORDER BY MatchID DESC LIMIT 1');
      my ($wager, $onwho) = split(/ /,$arg);
+     $onwho = uc $onwho;
+     my $tmpindex = index($countstr,$onwho);
+     if ( $tmpindex >= $numberofsides ) {
+          $irc->yield(privmsg => $where, "/me - $nick, That is not a valid Side!");
+          return;
+     }
      if ($wager !~ /^\d+$/) {
           $irc->yield(privmsg => $where, "/me - $nick, The number of tokens must be a number!");
           return;
@@ -270,6 +281,101 @@ sub irc_botcmd_winner {
           }
           $irc->yield(privmsg => $where, "/me - The Winners have been paid!");
      }
+     return;
+}
+
+sub irc_botcmd_poll {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$//;
+     if (is_authorized($nick)) {
+        if (not defined $arg) {
+           $irc->yield(privmsg => $where, "/me - No Voting Items found in command. Items should be separated by a :");
+           return;
+        }
+        my @items = split(':', $arg);
+        my $numofitems = scalar @items;
+        if (scalar @items < 2) {
+           $irc->yield(privmsg => $where, "/me - Not enough Items. Needs at least 2 items");
+           return;
+        } elsif (scalar @items > 10) {
+           $irc->yield(privmsg => $where, "/me - Too many items. Needs less than 10 items");
+           return;
+        }
+        for (my $count = scalar @items; $count < 10; $count = $count + 1) {
+           $items[$count]="";
+        }
+        $sth = $dbh->prepare('INSERT INTO `Poll` SET PollTime=NOW(),NumOfItems=?,Name_A=?, Name_B=?, Name_C=?, Name_D=?, Name_E=?, Name_F=?, Name_G=?, Name_H=?, Name_I=?, Name_J=?');
+        $sth->execute($numofitems,$items[0],$items[1],$items[2],$items[3],$items[4],$items[5],$items[6],$items[7],$items[8],$items[9],);
+        $sth->finish;
+        $irc->yield(privmsg => $where, "/me - New poll is starting. You have 1 minute to vote!");
+        $irc->yield(privmsg => $where, "/me - To vote use: !vote Choice - where Choice is one of the following letters:");
+        for ($count = 0; $count < $numofitems; $count = $count + 1) {
+           $irc->yield(privmsg => $where, "/me - Item $itemname[$count] is $items[$count].");
+        }
+        $irc->yield(privmsg => $where, "/me - Once the timer runs out, the results will be posted.");
+        $poll_open = true;
+        my ($kernel, $self) = @_[KERNEL, OBJECT];
+        $kernel->delay_set(irc_botcmd_pollclose => 60, 'evepriceinfo!evepriceinfo@evepriceinfo.twitch.tv','#rushlock','');
+     }
+     return;
+}
+
+sub irc_botcmd_vote {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my ($where, $arg) = @_[ARG1, ARG2];
+     $arg =~ s/\s+$//;
+     if ($poll_open != true) {
+          return;
+     }
+     if ($arg !~ /^[aAbBcCdDeEfFgGhHiIjJ]$/) {
+          $irc->yield(privmsg => $where, "/me - $nick, The vote must be in the format !vote Item");
+          return;
+     }
+     my $currentvote = $dbh->selectrow_array("SELECT TwitchID FROM Voted WHERE TwitchID = \"$nick\"");
+     if ($currentvote) {
+          $irc->yield(privmsg => $where, "/me - $nick, you have already voted for this poll!");
+          return;
+     }
+     my ($numberofitems) = $dbh->selectrow_array('SELECT NumOfItems FROM `Poll` ORDER BY PollID DESC LIMIT 1');
+     my $onwho = $arg;
+     $onwho = uc $onwho;
+     my $tmpindex = index($countstr,$onwho);
+     if ( $tmpindex >= $numberofitems ) {
+          $irc->yield(privmsg => $where, "/me - $nick, That is not a valid poll item!");
+          return;
+     }
+     my $sth = $dbh->prepare('SELECT PollID FROM `Poll` ORDER BY PollID DESC LIMIT 1');
+     $sth->execute();
+     my ($pollid) = $sth->fetchrow_array;
+     $sth = $dbh->prepare("UPDATE Poll SET $onwho = $onwho + 1 WHERE PollID = ?");
+     $sth->execute($pollid);
+     $sth->finish;
+     $sth = $dbh->prepare('INSERT INTO Voted SET TwitchID =  ?');
+     $sth->execute($nick);
+     $sth->finish;
+     $irc->yield(privmsg => $where, "/me - $nick Your vote for $onwho has been counted.");
+     return;
+}
+
+sub irc_botcmd_pollclose {
+     my $nick = (split /!/, $_[ARG0])[0];
+     my $where = $_[ARG1];
+     if (!is_authorized($nick)) {
+          return;
+     }
+     $irc->yield(privmsg => $where, "/me - Voting is now closed. No more !vote commands will be accepted.");
+     $poll_open = false;
+     my $sth = $dbh->prepare('SELECT * FROM `Poll` ORDER BY PollID DESC LIMIT 1');
+     $sth->execute();
+     my @vote = $sth->fetchrow_array;
+     for (my $z = 3; $z < $vote[2]+4; $z = $z + 2) {
+          if ($vote[$z+1] > 0) {
+               $irc->yield(privmsg => $where, "/me - Item $vote[$z] - $vote[$z+1]");
+          }
+     }
+     $sth = $dbh->prepare('TRUNCATE TABLE `Voted`');
+     $sth->execute();
      return;
 }
 
